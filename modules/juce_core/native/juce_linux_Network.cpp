@@ -526,13 +526,13 @@ private:
             header << "\r\n" << userHeaders;
 
         if(header.toString().endsWith("\r\n"))
-	{
-	    header << "\r\n"
-	}
-	else
-	{
+        {
+            header << "\r\n";
+        }
+        else
+        {
             header << "\r\n\r\n";
-	}
+        }
 
         if (hasPostData)
             header << postData;
