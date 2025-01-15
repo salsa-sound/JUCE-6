@@ -2,9 +2,8 @@
 
 ## System Requirements
 
-- All project types require CMake 3.15 or higher.
+- All project types require CMake 3.22 or higher.
 - Android targets are not currently supported.
-- WebView2 on Windows via JUCE_USE_WIN_WEBVIEW2 flag in juce_gui_extra is not currently supported.
 
 Most system package managers have packages for CMake, but we recommend using the most recent release
 from https://cmake.org/download. You should always use a CMake that's newer than your build
@@ -144,11 +143,10 @@ you can configure a Clang-cl build by passing "-T ClangCL" on your configuration
 If you wish to use Clang with GNU-like command-line instead, you can pass
 `-DCMAKE_CXX_COMPILER=clang++` and `-DCMAKE_C_COMPILER=clang` on your configuration commandline.
 clang++ and clang must be on your `PATH` for this to work. Only more recent versions of CMake
-support Clang's GNU-like command-line on Windows. CMake 3.12 is not supported, CMake 3.15 has
-support, CMake 3.20 or higher is recommended.  Note that CMake doesn't seem to automatically link a
-runtime library when building in this configuration, but this can be remedied by setting the
-`MSVC_RUNTIME_LIBRARY` property. See the [official
-documentation](https://cmake.org/cmake/help/v3.15/prop_tgt/MSVC_RUNTIME_LIBRARY.html) of this
+support Clang's GNU-like command-line on Windows.   Note that CMake doesn't seem to automatically
+link a runtime library when building in this configuration, but this can be remedied by setting
+the `MSVC_RUNTIME_LIBRARY` property. See the [official
+documentation](https://cmake.org/cmake/help/v3.22/prop_tgt/MSVC_RUNTIME_LIBRARY.html) of this
 property for usage recommendations.
 
 ### A note about compile definitions
@@ -169,10 +167,10 @@ appropriate:
 
     target_compile_definitions(my_target PUBLIC NAME_OF_KEY=<value>)
 
-The `JucePlugin_PreferredChannelConfig` preprocessor definition for plugins is difficult to specify
-in a portable way due to its use of curly braces, which may be misinterpreted in Linux/Mac builds
-using the Ninja/Makefile generators. It is recommended to avoid this option altogether, and to use
-the newer buses API to specify the desired plugin inputs and outputs.
+The `JucePlugin_PreferredChannelConfigurations` preprocessor definition for plugins is difficult to
+specify in a portable way due to its use of curly braces, which may be misinterpreted in Linux/Mac
+builds using the Ninja/Makefile generators. It is recommended to avoid this option altogether, and
+to use the newer buses API to specify the desired plugin inputs and outputs.
 
 ## API Reference
 
@@ -224,6 +222,24 @@ plugin folders may be protected, so the build may require elevated permissions i
 installation to work correctly, or you may need to adjust the permissions of the destination
 folders.
 
+#### `JUCE_MODULES_ONLY`
+
+Only brings in targets for the built-in JUCE modules, and the `juce_add_module*` CMake functions.
+This is meant for highly custom use-cases where the `juce_add_gui_app` and `juce_add_plugin`
+functions are not required. Most importantly, the 'juceaide' helper tool is not built when this
+option is enabled, which may improve build times for established products that use other methods to
+handle plugin bundle structures, icons, plists, and so on. If this option is enabled, then
+`JUCE_ENABLE_MODULE_SOURCE_GROUPS` will have no effect.
+
+#### `JUCE_WEBVIEW2_PACKAGE_LOCATION`
+
+You can ask JUCE to link the WebView2 library statically to your target on Windows, by specifying 
+the `NEEDS_WEBVIEW2` option when creating your target. In this case JUCE will search for the 
+WebView2 package on your system. The default search location is 
+`%userprofile%\AppData\Local\PackageManagement\NuGet\Packages`. This location can be overriden by
+specifying this option. The provided location should contain the `*Microsoft.Web.WebView2*` 
+directory.
+
 ### Functions
 
 #### `juce_add_<target>`
@@ -266,7 +282,7 @@ attributes directly to these creation functions, rather than adding them later.
 `BUNDLE_ID`
 - An identifier string in the form "com.yourcompany.productname" which should uniquely identify
   this target. Mainly used for macOS builds. If not specified, a default will be generated using
-  the target's `COMPANY_NAME` and `PRODUCT_NAME`.
+  the target's `COMPANY_NAME` and the name of the CMake target.
 
 `MICROPHONE_PERMISSION_ENABLED`
 - May be either TRUE or FALSE. Adds the appropriate entries to an app's Info.plist.
@@ -331,12 +347,14 @@ attributes directly to these creation functions, rather than adding them later.
 
 `LAUNCH_STORYBOARD_FILE`
 - A custom launch storyboard file to use on iOS. If not supplied, a default storyboard will be
-  used.
+  used. If this is specified, then this will take precedence over a LaunchImage inside a custom
+  xcassets directory.
 
 `CUSTOM_XCASSETS_FOLDER`
 - A path to an xcassets directory, containing icons and/or launch images for this target. If this
-  is specified, the ICON_BIG and ICON_SMALL arguments will not have an effect on iOS, and a launch
-  storyboard will not be used.
+  is specified, the ICON_BIG and ICON_SMALL arguments will not have an effect on iOS. LaunchImages
+  have been deprecated from iOS 13 onward, but if your xcassets folder contains a LaunchImage and
+  a custom storyboard hasn't been specified, then it will be used.
 
 `TARGETED_DEVICE_FAMILY`
 - Specifies the device families on which the product must be capable of running. Allowed values
@@ -396,6 +414,11 @@ attributes directly to these creation functions, rather than adding them later.
   are set on a JUCE target. By default, we don't link Webkit because you might not need it, but
   if you get linker or include errors that reference Webkit, just set this argument to `TRUE`.
 
+`NEEDS_WEBVIEW2`
+- On Windows, JUCE may or may not need to link to WebView2 depending on the compile definitions that
+  are set on a JUCE target. By default, we don't link WebView2 because you might not need it, but
+  if you get linker or include errors that reference WebView2, just set this argument to `TRUE`.
+
 `NEEDS_STORE_KIT`
 - On macOS, JUCE may or may not need to link to StoreKit depending on the compile definitions that
   are set on a JUCE target. By default, we don't link StoreKit because you might not need it, but
@@ -442,6 +465,11 @@ attributes directly to these creation functions, rather than adding them later.
 `APP_SANDBOX_FILE_ACCESS_ABS_RW`
 - A set of space-separated paths that will be added to this target's entitlements plist for
   accessing read/write absolute paths if `APP_SANDBOX_ENABLED` is `TRUE`.
+
+`APP_SANDBOX_EXCEPTION_IOKIT`
+- A set of space-separated strings specifying IOUserClient subclasses to open or to set properties 
+  on. These will be added to this target's entitlements plist if `APP_SANDBOX_ENABLED` is `TRUE`. 
+  For more information see Apple's IOKit User Client Class Temporary Exception documentation.
 
 `PLIST_TO_MERGE`
 - A string to insert into an app/plugin's Info.plist.
@@ -497,6 +525,17 @@ attributes directly to these creation functions, rather than adding them later.
 `AAX_IDENTIFIER`
 - The bundle ID for the AAX plugin target. Matches the `BUNDLE_ID` by default.
 
+`LV2URI`
+- This is a string that acts as a unique identifier for an LV2 plugin. If you make any incompatible 
+  changes to your plugin (remove parameters, reorder parameters, change preset format etc.) you MUST
+  change this value. LV2 hosts will assume that any plugins with the same URI are interchangeable.
+  By default, the value of this property will be generated based on the COMPANY_WEBSITE and
+  PLUGIN_NAME. However, in some circumstances, such as the following, you'll need to override the
+  default:
+  - The plugin name contains characters such as spaces that are invalid in a URI; or
+  - The COMPANY_WEBSITE omits the leading scheme identifier (http://); or
+  - There's no website associated with the plugin, so you want to use a 'urn:' identifier instead.
+
 `VST_NUM_MIDI_INS`
 - For VST2 and VST3 plugins that accept midi, this allows you to configure the number of inputs.
 
@@ -505,7 +544,7 @@ attributes directly to these creation functions, rather than adding them later.
 
 `VST2_CATEGORY`
 - Should be one of: `kPlugCategUnknown`, `kPlugCategEffect`, `kPlugCategSynth`,
-  `kPlugCategAnalysis`, `kPlugCategMatering`, `kPlugCategSpacializer`, `kPlugCategRoomFx`,
+  `kPlugCategAnalysis`, `kPlugCategMastering`, `kPlugCategSpacializer`, `kPlugCategRoomFx`,
   `kPlugSurroundFx`, `kPlugCategRestoration`, `kPlugCategOfflineProcess`, `kPlugCategShell`,
   `kPlugCategGenerator`.
 
@@ -538,13 +577,9 @@ attributes directly to these creation functions, rather than adding them later.
   in GarageBand.
 
 `AAX_CATEGORY`
-- Should be one or more of: `AAX_ePlugInCategory_None`, `AAX_ePlugInCategory_EQ`,
-  `AAX_ePlugInCategory_Dynamics`, `AAX_ePlugInCategory_PitchShift`, `AAX_ePlugInCategory_Reverb`,
-  `AAX_ePlugInCategory_Delay`, `AAX_ePlugInCategory_Modulation`, `AAX_ePlugInCategory_Harmonic`,
-  `AAX_ePlugInCategory_NoiseReduction`, `AAX_ePlugInCategory_Dither`,
-  `AAX_ePlugInCategory_SoundField`, `AAX_ePlugInCategory_HWGenerators`,
-  `AAX_ePlugInCategory_SWGenerators`, `AAX_ePlugInCategory_WrappedPlugin`,
-  `AAX_ePlugInCategory_Effect`
+- Should be one or more of: `None`, `EQ`, `Dynamics`, `PitchShift`, `Reverb`, `Delay`, `Modulation`,
+  `Harmonic`, `NoiseReduction`, `Dither`, `SoundField`, `HWGenerators`, `SWGenerators`,
+  `WrappedPlugin`, `Effect`, and `MIDIEffect`. You may also add the prefix `AAX_ePlugInCategory_`.
 
 `PLUGINHOST_AU`
 - May be either TRUE or FALSE (defaults to FALSE). If TRUE, will add the preprocessor definition
@@ -598,6 +633,51 @@ attributes directly to these creation functions, rather than adding them later.
   adding the plugin targets, rather than setting this argument on each individual target.
   Unlike the other `COPY_DIR` arguments, this argument does not have a default value so be sure
   to set it if you have enabled `COPY_PLUGIN_AFTER_BUILD` and the `Unity` format.
+
+`IS_ARA_EFFECT`
+- May be either TRUE or FALSE (defaults to FALSE). If TRUE it enables additional codepaths in the
+  VST3 and AU plugin wrappers allowing compatible hosts to load the plugin with additional ARA
+  functionality. It will also add the preprocessor definition `JucePlugin_Enable_ARA=1`, which can
+  be used in preprocessor conditions inside the plugin code. You should not add this definition
+  using `target_compile_definitions` manually.
+
+`ARA_FACTORY_ID`
+- A globally unique and versioned identifier string. If not provided a sensible default will be
+  generated using the `BUNDLE_ID` and `VERSION` values. The version must be updated if e.g. the
+  plugin's (compatible) document archive ID(s) or its analysis or playback transformation
+  capabilities change.
+
+`ARA_DOCUMENT_ARCHIVE_ID`
+- Identifier string for document archives created by the document controller. This ID must be
+  globally unique and is shared only amongst document controllers that create the same archives and
+  produce the same render results based upon the same input data. This means that the ID must be
+  updated if the archive format changes in any way that is no longer downwards compatible. If not
+  provided a version independent default will be created that is only appropriate as long as the
+  format remains unchanged.
+
+`ARA_ANALYSIS_TYPES`
+- Defaults to having no analyzable types. Should be one or more of the following values if the
+  document controller has the corresponding analysis capability: `kARAContentTypeNotes`,
+  `kARAContentTypeTempoEntries`, `kARAContentTypeBarSignatures`, `kARAContentTypeStaticTuning `,
+  `kARAContentTypeKeySignatures`, `kARAContentTypeSheetChords`
+
+`ARA_TRANSFORMATION_FLAGS`
+- Defaults to `kARAPlaybackTransformationNoChanges`. If the document controller has the ability to
+  provide the corresponding change it should be one or more of:
+  `kARAPlaybackTransformationTimestretch`, `kARAPlaybackTransformationTimestretchReflectingTempo`,
+  `kARAPlaybackTransformationContentBasedFadeAtTail`,
+  `kARAPlaybackTransformationContentBasedFadeAtHead`
+
+`VST3_AUTO_MANIFEST`
+- May be either TRUE or FALSE (defaults to TRUE). When TRUE, a POST_BUILD step will be added to the
+  VST3 target which will generate a moduleinfo.json file into the Resources subdirectory of the
+  plugin bundle. This is normally desirable, but does require that the plugin can be successfully
+  loaded immediately after building the VST3 target. If the plugin needs further processing before
+  it can be loaded (e.g. custom signing), then set this option to FALSE to disable the automatic
+  manifest generation. To generate the manifest at a later point in the build, use the
+  `juce_enable_vst3_manifest_step` function. It is strongly recommended to generate a manifest for
+  your plugin, as this allows compatible hosts to scan the plugin much more quickly, leading to
+  an improved experience for users.
 
 #### `juce_add_binary_data`
 
@@ -659,15 +739,29 @@ If your custom build steps need to use the location of the plugin artefact, you 
 by querying the property `JUCE_PLUGIN_ARTEFACT_FILE` on a plugin target (*not* the shared code
 target!).
 
+#### `juce_enable_vst3_manifest_step`
+
+    juce_enable_vst3_manifest_step(<target>)
+
+You may call this function to manually enable VST3 manifest generation on a plugin. The argument to
+this function should be a target previously created with `juce_add_plugin`.
+
+VST3_AUTO_MANIFEST TRUE will cause the VST3 manifest to be generated immediately after building.
+This is not always appropriate, if extra build steps (such as signing or modifying the plugin
+bundle) must be executed before the plugin can be loaded. In such cases, you should set
+VST3_AUTO_MANIFEST FALSE, use `add_custom_command(TARGET POST_BUILD)` to add your own post-build
+steps, and then finally call `juce_enable_vst3_manifest_step`.
+
 #### `juce_set_<kind>_sdk_path`
 
     juce_set_aax_sdk_path(<absolute path>)
     juce_set_vst2_sdk_path(<absolute path>)
     juce_set_vst3_sdk_path(<absolute path>)
+    juce_set_ara_sdk_path(<absolute path>)
 
-Call these functions from your CMakeLists to set up your local AAX, VST2, and VST3 SDKs. These
-functions should be called *before* adding any targets that may depend on the AAX/VST2/VST3 SDKs
-(plugin hosts, AAX/VST2/VST3 plugins etc.).
+Call these functions from your CMakeLists to set up your local AAX, VST2, VST3 and ARA SDKs. These
+functions should be called *before* adding any targets that may depend on the AAX/VST2/VST3/ARA SDKs
+(plugin hosts, AAX/VST2/VST3/ARA plugins etc.).
 
 #### `juce_add_module`
 
@@ -701,8 +795,8 @@ CMakeLists in the `modules` directory.
 
 This function parses the PIP metadata block in the provided header, and adds appropriate build
 targets for a console app, GUI app, or audio plugin. For audio plugin targets, it builds as many
-plugin formats as possible. To build AAX or VST2 targets, call `juce_set_aax_sdk_path` and/or
-`juce_set_vst2_sdk_path` *before* calling `juce_add_pip`.
+plugin formats as possible. To build VST2 targets, call `juce_set_vst2_sdk_path` *before* calling
+`juce_add_pip`.
 
 This is mainly provided to build the built-in example projects in the JUCE repo, and for building
 quick proof-of-concept demo apps with minimal set-up. For any use-case more complex than a
@@ -717,6 +811,21 @@ your target.
 This function sets the `CMAKE_<LANG>_FLAGS_<MODE>` to empty in the current directory and below,
 allowing alternative optimisation/debug flags to be supplied without conflicting with the
 CMake-supplied defaults.
+
+#### `juce_link_with_embedded_linux_subprocess`
+
+    juce_link_with_embedded_linux_subprocess(<target>)
+
+This function links the provided target with an interface library that generates a barebones 
+standalone executable file and embeds it as a binary resource. This binary resource is only used
+by the `juce_gui_extra` module and only when its `JUCE_WEB_BROWSER` capability is enabled. This
+executable will then be deployed into a temporary file only when the code is running in a
+non-standalone format, and will be used to host a WebKit view. This technique is used by audio
+plugins on Linux.
+
+This function is automatically called if necessary for all targets created by one of the JUCE target
+creation functions i.e. `juce_add_gui_app`, `juce_add_console_app` and `juce_add_gui_app`. You don't
+need to call this function manually in these cases.
 
 ### Targets
 
