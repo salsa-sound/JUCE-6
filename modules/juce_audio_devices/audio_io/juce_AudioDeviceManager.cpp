@@ -777,6 +777,11 @@ void AudioDeviceManager::setCurrentAudioDeviceType (const String& type, bool tre
             AudioDeviceSetup s (*lastDeviceTypeConfigs.getUnchecked (i));
             insertDefaultDeviceNames (s);
 
+            if(!getCurrentDeviceTypeObject()->hasSeparateInputsAndOutputs() && s.inputDeviceName != s.outputDeviceName && !s.inputDeviceName.isEmpty() && !s.outputDeviceName.isEmpty())
+            {
+                s.outputDeviceName = juce::String{};
+            }
+
             setAudioDeviceSetup (s, treatAsChosenDevice);
 
             sendChangeMessage();
