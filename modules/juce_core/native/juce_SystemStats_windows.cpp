@@ -631,14 +631,14 @@ static constexpr DWORD generateProviderID (const char* string)
          | (DWORD) string[3] << 0x00;
 }
 
-static std::optional<std::vector<std::byte>> readSMBIOSData()
+static std::optional<std::vector<uint8_t>> readSMBIOSData()
 {
     const auto sig = generateProviderID ("RSMB");
     const auto  id = generateProviderID ("RSDT");
 
     if (const auto bufLen = GetSystemFirmwareTable (sig, id, nullptr, 0); bufLen > 0)
     {
-        std::vector<std::byte> buffer;
+        std::vector<uint8_t> buffer;
 
         buffer.resize (bufLen);
 
@@ -651,7 +651,7 @@ static std::optional<std::vector<std::byte>> readSMBIOSData()
 
 String getLegacyUniqueDeviceID()
 {
-    if (const auto dump = readSMBIOSData())
+    /*if (const auto dump = readSMBIOSData())
     {
         uint64_t hash = 0;
         const auto start = dump->data();
@@ -661,14 +661,14 @@ String getLegacyUniqueDeviceID()
             hash = hash * (uint64_t) 101 + (uint8_t) *dataPtr;
 
         return String (hash);
-    }
+    }*/
 
     return {};
 }
 
 String SystemStats::getUniqueDeviceID()
 {
-    if (const auto smbiosBuffer = readSMBIOSData())
+    /*if (const auto smbiosBuffer = readSMBIOSData())
     {
         #pragma pack (push, 1)
         struct RawSMBIOSData
@@ -702,7 +702,7 @@ String SystemStats::getUniqueDeviceID()
             return {};
         }
 
-        Span<const std::byte> content (smbiosBuffer->data() + sizeof (RawSMBIOSData), asRawSMBIOSData->length);
+        Span<const uint8_t> content (smbiosBuffer->data() + sizeof (RawSMBIOSData), asRawSMBIOSData->length);
 
         while (! content.empty())
         {
@@ -841,7 +841,7 @@ String SystemStats::getUniqueDeviceID()
     }
 
     // Please tell someone at JUCE if this occurs
-    jassertfalse;
+    jassertfalse;*/
     return {};
 }
 
