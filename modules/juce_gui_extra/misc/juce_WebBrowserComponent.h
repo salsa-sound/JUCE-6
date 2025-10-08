@@ -106,7 +106,7 @@ public:
     */
     struct Resource
     {
-        std::vector<std::byte> data;
+        std::vector<uint8_t> data;
         String mimeType;
     };
 
