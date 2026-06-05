@@ -32,6 +32,8 @@
   ==============================================================================
 */
 
+#include <juce_gui_basics/detail/juce_ComponentHelpers.h>
+
 #if JUCE_MAC
  #include <juce_gui_basics/native/juce_PerScreenDisplayLinks_mac.h>
 #endif
@@ -76,10 +78,6 @@ private:
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (iOSBackgroundProcessCheck)
 };
 
-#endif
-
-#if JUCE_WINDOWS && JUCE_WIN_PER_MONITOR_DPI_AWARE
- extern JUCE_API double getScaleFactorForWindow (HWND);
 #endif
 
 static bool contextHasTextureNpotFeature()
@@ -445,13 +443,14 @@ public:
     {
         JUCE_ASSERT_MESSAGE_THREAD
 
-        if (auto* peer = component.getPeer())
+        if ([[maybe_unused]] auto* peer = component.getPeer())
         {
-            auto& desktop = Desktop::getInstance();
             const auto localBounds = component.getLocalBounds();
-            const auto globalArea = component.getScreenBounds() * desktop.getGlobalScaleFactor();
+            const auto logicalArea = component.getScreenBounds();
 
            #if JUCE_MAC
+            const auto globalArea = detail::ScalingHelpers::scaledScreenPosToUnscaled (component, logicalArea);
+
             updateScreen();
 
             const auto displayScale = std::invoke ([this]
@@ -469,10 +468,15 @@ public:
             });
 
             const auto newArea = globalArea.withZeroOrigin() * displayScale;
-           #else
-            const auto newArea = desktop.getDisplays()
-                                        .logicalToPhysical (globalArea)
-                                                       .withZeroOrigin();
+           #elif JUCE_WINDOWS || JUCE_LINUX || JUCE_BSD
+            const auto globalArea = detail::ScalingHelpers::scaledScreenPosToUnscaled (component, logicalArea);
+            const auto newArea = (globalArea.toFloat() * peer->getPlatformScaleFactor()).withZeroOrigin().toNearestInt();
+           #elif JUCE_IOS || JUCE_ANDROID
+            auto& desktop = Desktop::getInstance();
+            const auto& displays = desktop.getDisplays();
+            const auto physicalTopLeft = displays.logicalToPhysical (logicalArea.getTopLeft().toFloat());
+            const auto physicalBottomRight = displays.logicalToPhysical (logicalArea.getBottomRight().toFloat());
+            const auto newArea = Rectangle { physicalTopLeft, physicalBottomRight }.withZeroOrigin().toNearestInt();
            #endif
 
             // On Windows some hosts (Pro Tools 2022.7) do not take the current DPI into account
@@ -498,7 +502,7 @@ public:
                 transform = AffineTransform::scale ((float) newArea.getWidth()  / (float) localBounds.getWidth(),
                                                     (float) newArea.getHeight() / (float) localBounds.getHeight());
 
-                nativeContext->updateWindowPosition (peer->getAreaCoveredBy (component));
+                nativeContext->updateWindowPosition();
                 invalidateAll();
             });
         }
@@ -552,7 +556,7 @@ public:
             glEnable (GL_TEXTURE_2D);
 
        #if JUCE_WINDOWS
-        // some stupidly old drivers are missing this function, so try to at least avoid a crash here,
+        // some old drivers are missing this function, so try to at least avoid a crash here,
         // but if you hit this assertion you may want to have your own version check before using the
         // component rendering stuff on such old drivers.
         jassert (context.extensions.glActiveTexture != nullptr);
@@ -1106,6 +1110,7 @@ public:
     {
         auto& comp = *getComponent();
         stop();
+        detail::ComponentHelpers::releaseAllCachedImageResources (comp);
         comp.setCachedComponentImage (nullptr);
         context.nativeContext = nullptr;
     }
@@ -1123,8 +1128,7 @@ public:
             if (auto* c = CachedImage::get (comp))
                 c->handleResize();
 
-            if (auto* peer = comp.getTopLevelComponent()->getPeer())
-                context.nativeContext->updateWindowPosition (peer->getAreaCoveredBy (comp));
+            context.nativeContext->updateWindowPosition();
         }
     }
 

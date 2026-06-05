@@ -53,7 +53,7 @@ struct TextureInfo
 struct CachedImageList final : public ReferenceCountedObject,
                                private ImagePixelData::Listener
 {
-    CachedImageList (OpenGLContext& c) noexcept
+    explicit CachedImageList (OpenGLContext& c) noexcept
         : context (c), maxCacheSize (c.getImageCacheSize()) {}
 
     static CachedImageList* get (OpenGLContext& c)
@@ -228,7 +228,7 @@ struct Target
         : context (c), frameBufferID (fb.getFrameBufferID()),
           bounds (origin.x, origin.y, fb.getWidth(), fb.getHeight())
     {
-        jassert (frameBufferID != 0); // trying to render into an uninitialised framebuffer object.
+        jassert (frameBufferID != 0); // trying to render into an uninitialised framebuffer object
     }
 
     Target (const Target& other) noexcept
@@ -955,7 +955,7 @@ private:
         GLuint current{};
     };
 
-    Values values = []
+    static Values getInitialValues()
     {
         if (! Traits::predicate())
             return Values{};
@@ -968,7 +968,9 @@ private:
         Traits::bind (current);
 
         return Values { previous, current };
-    }();
+    }
+
+    Values values = getInitialValues();
 };
 
 //==============================================================================
@@ -977,6 +979,20 @@ struct StateHelpers
     struct BlendingMode
     {
         BlendingMode() noexcept {}
+
+        ~BlendingMode()
+        {
+            glBlendFuncSeparate (prevSrcRGB, prevDstRGB, prevSrcAlpha, prevDstAlpha);
+
+            if ((bool) glIsEnabled (GL_BLEND) == prevBlendEnabled)
+                return;
+
+            if (prevBlendEnabled)
+                glEnable (GL_BLEND);
+            else
+                glDisable (GL_BLEND);
+
+        }
 
         void resync() noexcept
         {
@@ -1030,8 +1046,20 @@ struct StateHelpers
         }
 
     private:
-        bool blendingEnabled = false;
+        static GLenum getBlendEnum (GLenum kind)
+        {
+            GLint result{};
+            glGetIntegerv (kind, &result);
+            return static_cast<GLenum> (result);
+        }
+
         GLenum srcFunction = 0, dstFunction = 0;
+        GLenum prevSrcAlpha = getBlendEnum (GL_BLEND_SRC_ALPHA);
+        GLenum prevSrcRGB   = getBlendEnum (GL_BLEND_SRC_RGB);
+        GLenum prevDstAlpha = getBlendEnum (GL_BLEND_DST_ALPHA);
+        GLenum prevDstRGB   = getBlendEnum (GL_BLEND_DST_RGB);
+        bool blendingEnabled = false;
+        bool prevBlendEnabled = glIsEnabled (GL_BLEND);
     };
 
     //==============================================================================
@@ -1445,7 +1473,7 @@ struct StateHelpers
         {
             context.extensions.glBufferSubData (GL_ARRAY_BUFFER, 0, (GLsizeiptr) ((size_t) numVertices * sizeof (VertexInfo)), vertexData);
             // NB: If you get a random crash in here and are running in a Parallels VM, it seems to be a bug in
-            // their driver.. Can't find a workaround unfortunately.
+            // their driver. Can't find a workaround unfortunately.
             glDrawElements (GL_TRIANGLES, (numVertices * 3) / 2, GL_UNSIGNED_SHORT, nullptr);
             JUCE_CHECK_OPENGL_ERROR
             numVertices = 0;
@@ -1786,7 +1814,7 @@ private:
 //==============================================================================
 struct SavedState final : public RenderingHelpers::SavedStateBase<SavedState>
 {
-    using BaseClass = RenderingHelpers::SavedStateBase<SavedState>;
+    using BaseClass = SavedStateBase;
 
     SavedState (GLState* s)  : BaseClass (s->target.bounds), state (s)
     {}
@@ -1962,9 +1990,10 @@ struct NonShaderContext final : public LowLevelGraphicsSoftwareRenderer
         texture.bind();
 
         target.makeActive();
-        target.context.copyTexture (target.bounds, Rectangle<int> (texture.getWidth(),
-                                                                   texture.getHeight()),
-                                    target.bounds.getWidth(), target.bounds.getHeight(),
+        target.context.copyTexture (target.bounds,
+                                    Rectangle { texture.getWidth(), texture.getHeight() },
+                                    target.bounds.getWidth(),
+                                    target.bounds.getHeight(),
                                     false);
         glBindTexture (GL_TEXTURE_2D, 0);
 

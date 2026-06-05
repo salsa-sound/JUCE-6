@@ -196,19 +196,16 @@ public:
     //==============================================================================
     void reset()
     {
-        const ScopedLock sl { lock };
-        cache = {};
+        cache.clear();
     }
 
     const auto& get (const Font& font, const int glyphNumber)
     {
-        const ScopedLock sl { lock };
         return cache.get (Key { font, glyphNumber }, [] (const auto& key)
         {
-            auto fontHeight = key.font.getHeight();
-            auto typeface = key.font.getTypefacePtr();
-            return typeface->getLayersForGlyph (key.font.getMetricsKind(),
-                                                key.glyph,
+            const auto fontHeight = key.font.getHeightInPoints();
+            const auto typeface = key.font.getTypefacePtr();
+            return typeface->getLayersForGlyph (key.glyph,
                                                 AffineTransform::scale (fontHeight * key.font.getHorizontalScale(),
                                                                         fontHeight));
         });
@@ -233,7 +230,6 @@ private:
     };
 
     LruCache<Key, std::vector<GlyphLayer>> cache;
-    CriticalSection lock;
 
     static GlyphCache*& getSingletonPointer() noexcept
     {
@@ -618,7 +614,7 @@ namespace EdgeTableFillers
         forcedinline void replaceLine (PixelRGB* dest, PixelARGB colour, int width) const noexcept
         {
             if ((size_t) destData.pixelStride == sizeof (*dest) && areRGBComponentsEqual)
-                memset ((void*) dest, colour.getRed(), (size_t) width * 3);   // if all the component values are the same, we can cheat..
+                memset ((void*) dest, colour.getRed(), (size_t) width * 3);   // if all the component values are the same, we can cheat
             else
                 JUCE_PERFORM_PIXEL_OP_LOOP (set (colour));
         }
@@ -1006,7 +1002,7 @@ namespace EdgeTableFillers
                     {
                         if (isPositiveAndBelow (loResY, maxY))
                         {
-                            // In the centre of the image..
+                            // in the centre of the image
                             render4PixelAverage (dest, this->srcData.getPixelPointer (loResX, loResY),
                                                  hiResX & 255, hiResY & 255);
                             ++dest;
@@ -1015,7 +1011,7 @@ namespace EdgeTableFillers
 
                         if (! repeatPattern)
                         {
-                            // At a top or bottom edge..
+                            // at a top or bottom edge
                             if (loResY < 0)
                                 render2PixelAverageX (dest, this->srcData.getPixelPointer (loResX, 0), hiResX & 255);
                             else
@@ -1029,7 +1025,7 @@ namespace EdgeTableFillers
                     {
                         if (isPositiveAndBelow (loResY, maxY) && ! repeatPattern)
                         {
-                            // At a left or right hand edge..
+                            // at a left or right hand edge
                             if (loResX < 0)
                                 render2PixelAverageY (dest, this->srcData.getPixelPointer (0, loResY), hiResY & 255);
                             else
@@ -1625,7 +1621,7 @@ namespace ClipRegions
 
             if (transform.isOnlyTranslation())
             {
-                // If our translation doesn't involve any distortion, just use a simple blit..
+                // if our translation doesn't involve any distortion, just use a simple blit
                 auto tx = (int) (transform.getTranslationX() * 256.0f);
                 auto ty = (int) (transform.getTranslationY() * 256.0f);
 
@@ -2305,7 +2301,7 @@ public:
 
         if (isOnlyTranslationAllowingError (t, 0.002f))
         {
-            // If our translation doesn't involve any distortion, just use a simple blit..
+            // if our translation doesn't involve any distortion, just use a simple blit
             auto tx = (int) (t.getTranslationX() * 256.0f);
             auto ty = (int) (t.getTranslationY() * 256.0f);
 
@@ -2370,7 +2366,7 @@ public:
 
                 if (isIdentity)
                 {
-                    // If our translation doesn't involve any distortion, we can speed it up..
+                    // if our translation doesn't involve any distortion, we can speed it up
                     g2.point1.applyTransform (t);
                     g2.point2.applyTransform (t);
                     t = {};
@@ -2530,8 +2526,8 @@ template <class StateObjectType>
 class SavedStateStack
 {
 public:
-    SavedStateStack (StateObjectType* initialState) noexcept
-        : currentState (initialState)
+    explicit SavedStateStack (std::unique_ptr<StateObjectType> initialState) noexcept
+        : currentState (std::move (initialState))
     {}
 
     SavedStateStack() = default;
@@ -2591,6 +2587,13 @@ public:
         : frame (frameIn)
     {
     }
+
+    explicit StackBasedLowLevelGraphicsContext (std::unique_ptr<SavedStateType> initialState)
+        : stack (std::move (initialState))
+    {
+    }
+
+    StackBasedLowLevelGraphicsContext() = default;
 
     bool isVectorDevice()                                              const override { return false; }
     Rectangle<int> getClipBounds()                                     const override { return stack->getClipBounds(); }
@@ -2663,11 +2666,11 @@ protected:
                 return std::tuple (cache.get (f, i), drawPos);
             }
 
-            const auto fontHeight = stack->font.getHeight();
+            const auto fontHeight = stack->font.getHeightInPoints();
             const auto fontTransform = AffineTransform::scale (fontHeight * stack->font.getHorizontalScale(),
                                                                fontHeight).followedBy (t);
             const auto fullTransform = stack->transform.getTransformWith (fontTransform);
-            return std::tuple (stack->font.getTypefacePtr()->getLayersForGlyph (stack->font.getMetricsKind(), i, fullTransform), Point<float>{});
+            return std::tuple (stack->font.getTypefacePtr()->getLayersForGlyph (i, fullTransform), Point<float>{});
         }();
 
         const auto initialFill = stack->fillType;
@@ -2696,9 +2699,6 @@ protected:
             }
         }
     }
-
-    explicit StackBasedLowLevelGraphicsContext (SavedStateType* initialState) : stack (initialState) {}
-    StackBasedLowLevelGraphicsContext() = default;
 
     RenderingHelpers::SavedStateStack<SavedStateType> stack;
     uint64_t frame = 0;

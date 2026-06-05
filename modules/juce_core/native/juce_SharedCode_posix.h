@@ -175,7 +175,7 @@ inline int juce_siginterrupt ([[maybe_unused]] int sig, [[maybe_unused]] int fla
 //==============================================================================
 namespace
 {
-   #if JUCE_LINUX || (JUCE_IOS && (! TARGET_OS_MACCATALYST) && (! __DARWIN_ONLY_64_BIT_INO_T)) // (this iOS stuff is to avoid a simulator bug)
+   #if defined (__GLIBC__) || (JUCE_IOS && (! TARGET_OS_MACCATALYST) && (! __DARWIN_ONLY_64_BIT_INO_T)) // (this iOS stuff is to avoid a simulator bug)
     using juce_statStruct = struct stat64;
     #define JUCE_STAT  stat64
    #else
@@ -190,7 +190,7 @@ namespace
     }
 
    #if ! JUCE_WASM
-    // if this file doesn't exist, find a parent of it that does..
+    // if this file doesn't exist, find a parent of it that does
     bool juce_doStatFS (File f, struct statfs& result)
     {
         for (int i = 5; --i >= 0;)
@@ -318,7 +318,7 @@ static bool setFileModeFlags (const String& fullPath, mode_t flags, bool shouldS
 
 bool File::setFileReadOnlyInternal (bool shouldBeReadOnly) const
 {
-    // Hmm.. should we give global write permission or just the current user?
+    // Should we give global write permission or just the current user?
     return setFileModeFlags (fullPath, S_IWUSR | S_IWGRP | S_IWOTH, ! shouldBeReadOnly);
 }
 
@@ -707,7 +707,7 @@ void juce_runSystemCommand (const String& command)
 String juce_getOutputFromCommand (const String&);
 String juce_getOutputFromCommand (const String& command)
 {
-    // slight bodge here, as we just pipe the output into a temp file and read it...
+    // slight bodge here, as we just pipe the output into a temp file and read it
     auto tempFile = File::getSpecialLocation (File::tempDirectory)
                       .getNonexistentChildFile (String::toHexString (Random::getSystemRandom().nextInt()), ".tmp", false);
 
@@ -726,7 +726,7 @@ class InterProcessLock::Pimpl
 public:
     Pimpl (const String&, int)  {}
 
-    int handle = 1, refCount = 1;  // On iOS just fake success..
+    int handle = 1, refCount = 1;  // on iOS just fake success
 };
 
 #else
@@ -738,7 +738,7 @@ public:
     {
        #if JUCE_MAC
         if (! createLockFile (File ("~/Library/Caches/com.juce.locks").getChildFile (lockName), timeOutMillisecs))
-            // Fallback if the user's home folder is on a network drive with no ability to lock..
+            // fallback if the user's home folder is on a network drive with no ability to lock
             createLockFile (File ("/tmp/com.juce.locks").getChildFile (lockName), timeOutMillisecs);
 
        #else
@@ -795,7 +795,7 @@ public:
         }
 
         closeFile();
-        return true; // only false if there's a file system error. Failure to lock still returns true.
+        return true; // only false if there's a file system error. Failure to lock still returns true
     }
 
     void closeFile()
@@ -948,13 +948,14 @@ public:
 
     void apply ([[maybe_unused]] PosixThreadAttribute& attr) const
     {
-        #if JUCE_LINUX || JUCE_BSD
-         const struct sched_param param { getPriority() };
+       #if JUCE_LINUX || JUCE_BSD
+        struct sched_param param{};
+        param.sched_priority = getPriority();
 
-         pthread_attr_setinheritsched (attr.get(), PTHREAD_EXPLICIT_SCHED);
-         pthread_attr_setschedpolicy (attr.get(), getScheduler());
-         pthread_attr_setschedparam (attr.get(), &param);
-        #endif
+        pthread_attr_setinheritsched (attr.get(), PTHREAD_EXPLICIT_SCHED);
+        pthread_attr_setschedpolicy (attr.get(), getScheduler());
+        pthread_attr_setschedparam (attr.get(), &param);
+       #endif
     }
 
     constexpr int getScheduler() const { return scheduler; }
@@ -1067,7 +1068,7 @@ void JUCE_CALLTYPE Thread::setCurrentThreadAffinityMask ([[maybe_unused]] uint32
 bool DynamicLibrary::open (const String& name)
 {
     close();
-    handle = dlopen (name.isEmpty() ? nullptr : name.toUTF8().getAddress(), RTLD_LOCAL | RTLD_NOW);
+    handle = dlopen (name.isEmpty() ? nullptr : name.toRawUTF8(), RTLD_LOCAL | RTLD_NOW);
     return handle != nullptr;
 }
 
@@ -1127,7 +1128,7 @@ public:
             }
             else if (result == 0)
             {
-                // we're the child process..
+                // we're the child process
                 close (pipeHandles[0]);   // close the read handle
 
                 if ((streamFlags & wantStdOut) != 0)
@@ -1155,7 +1156,7 @@ public:
             }
             else
             {
-                // we're the parent process..
+                // we're the parent process
                 childPID = result;
                 pipeHandle = pipeHandles[0];
                 close (pipeHandles[1]); // close the write handle

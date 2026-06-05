@@ -50,8 +50,6 @@ StringArray Font::findAllTypefaceStyles (const String& family)
     return factories->getFonts().findAllTypefaceStyles (family);
 }
 
-extern bool juce_isRunningInWine();
-
 class WindowsDirectWriteTypeface final : public Typeface
 {
 public:
@@ -130,11 +128,6 @@ public:
         return fromFont (dwFont, customFontCollection, nullptr, MetricsMechanism::gdiWithDwriteFallback);
     }
 
-    Native getNativeDetails() const override
-    {
-        return Native { hbFont.get(), nonPortableMetrics };
-    }
-
     Typeface::Ptr createSystemFallback (const String& c, const String& language) const override
     {
         auto factory = factories->getDWriteFactory().getInterface<IDWriteFactory2>();
@@ -150,7 +143,8 @@ public:
         if (FAILED (factory->GetSystemFontFallback (fallback.resetAndGetPointerAddress())) || fallback == nullptr)
             return {};
 
-        auto analysisSource = becomeComSmartPtrOwner (new AnalysisSource (c, language));
+        ComSmartPtr analysisSource { new AnalysisSource (c, language), IncrementRef::no };
+
         const auto originalName = getLocalisedFamilyName (*dwFont);
 
         const auto mapped = factories->getFonts().mapCharacters (fallback,
@@ -169,6 +163,11 @@ public:
     }
 
     ComSmartPtr<IDWriteFontFace> getIDWriteFontFace() const { return dwFontFace; }
+
+    const Native* getNativeDetails() const override
+    {
+        return native.get();
+    }
 
     static Typeface::Ptr findSystemTypeface()
     {
@@ -294,8 +293,7 @@ private:
           collection (std::move (collectionIn)),
           dwFont (font),
           dwFontFace (face),
-          hbFont (std::move (hbFontIn)),
-          nonPortableMetrics (metrics)
+          native (std::make_unique<Native> (TypefaceNativeOptions { std::move (hbFontIn), metrics }))
     {
         if (collection != nullptr)
             factories->getFonts().addCollection (collection);
@@ -340,8 +338,9 @@ private:
         const auto name = getLocalisedFamilyName (*dwFont);
         const auto style = getLocalisedStyle (*dwFont);
 
-        const HbFace hbFace { hb_directwrite_face_create (dwFace) };
-        HbFont font { hb_font_create (hbFace.get()) };
+        HbFace hbFace { hb_directwrite_face_create (dwFace), IncrementRef::no };
+        HbFont font { hb_font_create (hbFace.get()), IncrementRef::no };
+
         const auto dwMetrics = getDwriteMetrics (*dwFace);
 
         const auto metrics = mm == MetricsMechanism::gdiWithDwriteFallback
@@ -410,31 +409,15 @@ private:
     ComSmartPtr<IDWriteFontCollection> collection;
     ComSmartPtr<IDWriteFont> dwFont;
     ComSmartPtr<IDWriteFontFace> dwFontFace;
-    HbFont hbFont;
-    TypefaceAscentDescent nonPortableMetrics;
+    std::unique_ptr<Native> native;
 };
 
 struct DefaultFontNames
 {
-    DefaultFontNames()
-    {
-        if (juce_isRunningInWine())
-        {
-            // If we're running in Wine, then use fonts that might be available on Linux.
-            defaultSans     = "Bitstream Vera Sans";
-            defaultSerif    = "Bitstream Vera Serif";
-            defaultFixed    = "Bitstream Vera Sans Mono";
-        }
-        else
-        {
-            defaultSans     = "Verdana";
-            defaultSerif    = "Times New Roman";
-            defaultFixed    = "Lucida Console";
-            defaultFallback = "Tahoma";  // (contains plenty of unicode characters)
-        }
-    }
-
-    String defaultSans, defaultSerif, defaultFixed, defaultFallback;
+    const String defaultSans     { "Verdana" },
+                 defaultSerif    { "Times New Roman" },
+                 defaultFixed    { "Lucida Console" },
+                 defaultFallback { "Tahoma" };  // (contains plenty of unicode characters)
 };
 
 Typeface::Ptr Font::Native::getDefaultPlatformTypefaceForFont (const Font& font)

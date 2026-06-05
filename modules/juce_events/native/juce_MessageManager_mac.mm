@@ -322,7 +322,7 @@ public:
 //==============================================================================
 void MessageManager::runDispatchLoop()
 {
-    if (quitMessagePosted.get() == 0) // check that the quit message wasn't already posted..
+    if (quitMessagePosted.get() == 0) // check that the quit message wasn't already posted
     {
         JUCE_AUTORELEASEPOOL
         {
@@ -397,7 +397,7 @@ bool MessageManager::runDispatchLoopUntil (int millisecondsToRunFor)
             if (msRemaining <= 0)
                 break;
 
-            CFRunLoopRunInMode (kCFRunLoopDefaultMode, jmin (1.0, msRemaining * 0.001), true);
+            CFRunLoopRunInMode (kCFRunLoopDefaultMode, jmin (1.0, (double) msRemaining * 0.001), true);
 
             if (NSEvent* e = [NSApp nextEventMatchingMask: NSEventMaskAny
                                                 untilDate: [NSDate dateWithTimeIntervalSinceNow: 0.001]

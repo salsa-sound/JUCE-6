@@ -155,7 +155,7 @@ public:
                              surfaceView.get());
 
         // initialise the geometry of the view
-        updateWindowPosition (component.localAreaToGlobal (component.getLocalBounds()));
+        updateWindowPosition();
         hasInitialised = true;
     }
 
@@ -228,9 +228,9 @@ public:
     GLuint getFrameBufferID() const noexcept    { return 0; }
 
     //==============================================================================
-    void updateWindowPosition (Rectangle<int> bounds)
+    void updateWindowPosition()
     {
-        const auto physical = Desktop::getInstance().getDisplays().logicalToPhysical (bounds.toFloat()).toNearestInt();
+        const auto physical = computePhysicalBounds();
 
         if (std::exchange (physicalBounds, physical) == physical)
             return;
@@ -291,7 +291,7 @@ private:
      METHOD (layout,      "layout",    "(IIII)V" ) \
      CALLBACK (generatedCallback<&NativeContext::dispatchDraw>,       "onDrawNative",               "(JLandroid/graphics/Canvas;)V")
 
-     DECLARE_JNI_CLASS_WITH_BYTECODE (JuceOpenGLViewSurface, "com/rmsl/juce/JuceOpenGLView", 16, javaJuceOpenGLView)
+     DECLARE_JNI_CLASS_WITH_BYTECODE (JuceOpenGLViewSurface, "com/rmsl/juce/JuceOpenGLView", 24, javaJuceOpenGLView)
     #undef JNI_CLASS_MEMBERS
 
     //==============================================================================
@@ -352,6 +352,24 @@ private:
         eglTerminate (display);
         jassertfalse;
         return false;
+    }
+
+    Rectangle<int> computePhysicalBounds() const
+    {
+        if (auto* peer = component.getPeer())
+        {
+            const auto peerBounds = peer->getAreaCoveredBy (component).toFloat();
+            const auto globalRect = Rectangle { peer->localToGlobal (peerBounds.getTopLeft()),
+                                                peer->localToGlobal (peerBounds.getBottomRight()) }
+                                  / peer->getComponent().getDesktopScaleFactor();
+
+            const auto& displays = Desktop::getInstance().getDisplays();
+            const Rectangle physical { displays.logicalToPhysical (globalRect.getTopLeft()),
+                                       displays.logicalToPhysical (globalRect.getBottomRight()) };
+            return physical.toNearestInt();
+        }
+
+        return component.getBounds();
     }
 
     struct NativeWindowReleaser

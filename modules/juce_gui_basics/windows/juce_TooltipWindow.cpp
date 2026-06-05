@@ -127,7 +127,7 @@ void TooltipWindow::displayTipInternal (Point<int> screenPos, const String& tip,
         {
             const auto physicalPos = detail::ScalingHelpers::scaledScreenPosToUnscaled (screenPos);
             const auto scaledPos = detail::ScalingHelpers::unscaledScreenPosToScaled (*this, physicalPos);
-            updatePosition (tip, scaledPos, Desktop::getInstance().getDisplays().getDisplayForPoint (screenPos)->userArea);
+            updatePosition (tip, scaledPos, Desktop::getInstance().getDisplays().getDisplayForPoint (screenPos.toFloat())->userBounds.getLargestIntegerWithin());
 
             addToDesktop (ComponentPeer::windowHasDropShadow
                           | ComponentPeer::windowIsTemporary
@@ -144,7 +144,7 @@ void TooltipWindow::displayTipInternal (Point<int> screenPos, const String& tip,
         {
             if (w != nullptr && w != this && w->tipShowing == tipShowing && w->getParentComponent() == parent)
             {
-                // Looks like you have more than one TooltipWindow showing the same tip..
+                // Looks like you have more than one TooltipWindow showing the same tip.
                 // Be careful not to create more than one instance of this class with the
                 // same parent component!
                 jassertfalse;
@@ -242,7 +242,7 @@ void TooltipWindow::timerCallback()
         if (isVisible() || now < lastHideTime + 500)
         {
             // if a tip is currently visible (or has just disappeared), update to a new one
-            // immediately if needed..
+            // immediately if needed
             if (newComp == nullptr || dismissalMouseEventOccurred || newTip.isEmpty())
                 hideTip();
             else if (tipChanged)

@@ -90,6 +90,7 @@ std::vector<ProjectExporter::ExporterTypeInfo> ProjectExporter::getExporterTypeI
           XcodeProjectExporter::getTargetFolderNameiOS(),
           createIcon (export_xcode_svg, (size_t) export_xcode_svgSize) },
 
+        createExporterTypeInfo<MSVCProjectExporterVC2026> (export_visualStudio_svg, export_visualStudio_svgSize),
         createExporterTypeInfo<MSVCProjectExporterVC2022> (export_visualStudio_svg, export_visualStudio_svgSize),
         createExporterTypeInfo<MSVCProjectExporterVC2019> (export_visualStudio_svg, export_visualStudio_svgSize),
 
@@ -115,17 +116,24 @@ ProjectExporter::ExporterTypeInfo ProjectExporter::getTypeInfoForExporter (const
     return {};
 }
 
-ProjectExporter::ExporterTypeInfo ProjectExporter::getCurrentPlatformExporterTypeInfo()
+void ProjectExporter::getCurrentPlatformExporterTypeInfos (std::vector<ExporterTypeInfo>& result)
 {
-    #if JUCE_MAC
-     return ProjectExporter::getTypeInfoForExporter (XcodeProjectExporter::getValueTreeTypeNameMac());
-    #elif JUCE_WINDOWS
-     return ProjectExporter::getTypeInfoForExporter (MSVCProjectExporterVC2022::getValueTreeTypeName());
-    #elif JUCE_LINUX || JUCE_BSD
-     return ProjectExporter::getTypeInfoForExporter (MakefileProjectExporter::getValueTreeTypeName());
-    #else
-     #error "unknown platform!"
-    #endif
+    const auto typeNames =
+       #if JUCE_MAC
+        { XcodeProjectExporter::getValueTreeTypeNameMac(),
+          XcodeProjectExporter::getValueTreeTypeNameiOS() };
+       #elif JUCE_WINDOWS
+        { MSVCProjectExporterVC2026::getValueTreeTypeName(),
+          MSVCProjectExporterVC2022::getValueTreeTypeName(),
+          MSVCProjectExporterVC2019::getValueTreeTypeName() };
+       #elif JUCE_LINUX || JUCE_BSD
+        { MakefileProjectExporter::getValueTreeTypeName() };
+       #else
+        #error "unknown platform!"
+       #endif
+
+    for (const auto& typeName : typeNames)
+        result.push_back (getTypeInfoForExporter (typeName));
 }
 
 std::unique_ptr<ProjectExporter> ProjectExporter::createNewExporter (Project& project, const Identifier& exporterIdentifier)
@@ -160,6 +168,7 @@ std::unique_ptr<ProjectExporter> ProjectExporter::createExporterFromSettings (Pr
     return tryCreatingExporter (project,
                                 settings,
                                 Tag<XcodeProjectExporter>{},
+                                Tag<MSVCProjectExporterVC2026>{},
                                 Tag<MSVCProjectExporterVC2022>{},
                                 Tag<MSVCProjectExporterVC2019>{},
                                 Tag<MakefileProjectExporter>{},
@@ -176,6 +185,7 @@ bool ProjectExporter::canProjectBeLaunched (Project* project)
              XcodeProjectExporter::getValueTreeTypeNameMac(),
              XcodeProjectExporter::getValueTreeTypeNameiOS(),
             #elif JUCE_WINDOWS
+             MSVCProjectExporterVC2026::getValueTreeTypeName(),
              MSVCProjectExporterVC2022::getValueTreeTypeName(),
              MSVCProjectExporterVC2019::getValueTreeTypeName(),
             #endif
@@ -197,15 +207,18 @@ ProjectExporter::ProjectExporter (Project& p, const ValueTree& state)
       projectType (p.getProjectType()),
       projectName (p.getProjectNameString()),
       projectFolder (p.getProjectFolder()),
-      targetLocationValue     (settings, Ids::targetFolder,        getUndoManager()),
-      extraCompilerFlagsValue (settings, Ids::extraCompilerFlags,  getUndoManager()),
-      extraLinkerFlagsValue   (settings, Ids::extraLinkerFlags,    getUndoManager()),
-      externalLibrariesValue  (settings, Ids::externalLibraries,   getUndoManager()),
-      userNotesValue          (settings, Ids::userNotes,           getUndoManager()),
-      gnuExtensionsValue      (settings, Ids::enableGNUExtensions, getUndoManager()),
-      bigIconValue            (settings, Ids::bigIcon,             getUndoManager()),
-      smallIconValue          (settings, Ids::smallIcon,           getUndoManager()),
-      extraPPDefsValue        (settings, Ids::extraDefs,           getUndoManager())
+      targetLocationValue        (settings, Ids::targetFolder,              getUndoManager()),
+      extraCompilerFlagsValue    (settings, Ids::extraCompilerFlags,        getUndoManager()),
+      extraLinkerFlagsValue      (settings, Ids::extraLinkerFlags,          getUndoManager()),
+      externalLibrariesValue     (settings, Ids::externalLibraries,         getUndoManager()),
+      userNotesValue             (settings, Ids::userNotes,                 getUndoManager()),
+      gnuExtensionsValue         (settings, Ids::enableGNUExtensions,       getUndoManager()),
+      bigIconValue               (settings, Ids::bigIcon,                   getUndoManager()),
+      smallIconValue             (settings, Ids::smallIcon,                 getUndoManager()),
+      extraPPDefsValue           (settings, Ids::extraDefs,                 getUndoManager()),
+      paceProtectionValue        (settings, Ids::paceProtectionEnabled,     getUndoManager()),
+      paceConfigurationFileValue (settings, Ids::paceConfigurationLocation, getUndoManager(), "pacefusion.toml"),
+      paceBuildSourceRootValue   (settings, Ids::paceBuildSourceRootFolder, getUndoManager(), ".")
 {
     projectCompilerFlagSchemesValue = project.getProjectValue (Ids::compilerFlagSchemes);
     projectCompilerFlagSchemesValue.addListener (this);
@@ -339,6 +352,24 @@ void ProjectExporter::createPropertyEditors (PropertyListBuilder& props)
         props.add (new ChoicePropertyComponent (gnuExtensionsValue, "GNU Compiler Extensions"),
                    "Enabling this will use the GNU C++ language standard variant for compilation.");
 
+    if (supportsPaceProtection())
+    {
+        props.add (new ChoicePropertyComponent (paceProtectionValue, "Use PACE Fusion 6 Protection"),
+                   "Enable this to configure the project with PACE Fusion 6 Protection. "
+                   "Requires the PACE Fusion 6 SDK which can be obtained by contacting PACE (https://paceap.com/products/fusion/).");
+
+        props.add (new FilePathPropertyComponent (paceConfigurationFileValue, "PACE Fusion 6 Config File",
+                                                  false, true, "*.toml", project.getProjectFolder()),
+                                                  "Specify the relative path to the PACE Fusion 6 configuration file.");
+
+        props.add (new FilePathPropertyComponent (paceBuildSourceRootValue, "PACE Build Source Root Folder",
+                                                  true, getTargetOSForExporter() == TargetOS::getThisOS(), "*", project.getProjectFolder()),
+                                                  "Specify the relative path to the PACE Fusion 6 Build Source Root directory.");
+
+        props.add (new ChoicePropertyComponent (paceUseSharableTargetNames, "PACE Sharable Target Names"),
+                   "Enable this to use target names and sub-project names that allow sharing of analysis data between different exporters.");
+    }
+
     createIconProperties (props);
 
     createExporterProperties (props);
@@ -397,8 +428,9 @@ void ProjectExporter::addExtraIncludePathsIfPluginOrHost()
             addToExtraSearchPaths (getInternalVST3SDKPath(), 0);
     }
 
-    const auto lv2BasePath = getModuleFolderRelativeToProject ("juce_audio_processors").getChildFile ("format_types")
-                                                                                       .getChildFile ("LV2_SDK");
+    const auto lv2BasePath = getModuleFolderRelativeToProject ("juce_audio_processors_headless")
+                                .getChildFile ("format_types")
+                                .getChildFile ("LV2_SDK");
 
     if ((shouldBuildTargetType (Target::LV2PlugIn) && project.shouldBuildLV2()) || project.isLV2PluginHost())
     {
@@ -450,7 +482,7 @@ void ProjectExporter::addLegacyVSTFolderToPathIfSpecified()
 
 build_tools::RelativePath ProjectExporter::getInternalVST3SDKPath()
 {
-    return getModuleFolderRelativeToProject ("juce_audio_processors")
+    return getModuleFolderRelativeToProject ("juce_audio_processors_headless")
                            .getChildFile ("format_types")
                            .getChildFile ("VST3_SDK");
 }

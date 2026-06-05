@@ -35,7 +35,8 @@
 
  dependencies:     juce_core, juce_data_structures, juce_events, juce_graphics,
                    juce_gui_basics
- exporters:        xcode_mac, vs2022, linux_make, androidstudio, xcode_iphone
+ exporters:        xcode_mac, vs2022, vs2026, linux_make, androidstudio,
+                   xcode_iphone
 
  moduleFlags:      JUCE_STRICT_REFCOUNTEDPOINTER=1
 
@@ -484,6 +485,7 @@ class FontFeaturesDemo : public Component
 public:
     FontFeaturesDemo()
     {
+        setName ("Font features demo");
         fontsListBox.setTitle ("Fonts");
         fontsListBox.setRowHeight (20);
         fontsListBox.setColour (ListBox::textColourId, Colours::black);
@@ -506,6 +508,11 @@ public:
         addAndMakeVisible (featureListBox);
 
         setSize (750, 750);
+    }
+
+    void paint (Graphics& g) override
+    {
+        g.fillAll (getUIColourIfAvailable (LookAndFeel_V4::ColourScheme::UIColour::windowBackground));
     }
 
     void resized() override

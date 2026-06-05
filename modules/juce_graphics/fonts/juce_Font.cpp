@@ -78,7 +78,6 @@ public:
         const ScopedWriteLock sl (lock);
 
         setSize (faces.size());
-        defaultFace = nullptr;
     }
 
     Typeface::Ptr findTypefaceFor (const Font& font)
@@ -126,16 +125,7 @@ public:
 
         face = std::move (newFace);
 
-        if (defaultFace == nullptr && key == Key{})
-            defaultFace = face.typeface;
-
         return face.typeface;
-    }
-
-    Typeface::Ptr getDefaultFace() const noexcept
-    {
-        const ScopedReadLock slr (lock);
-        return defaultFace;
     }
 
 private:
@@ -166,7 +156,6 @@ private:
         Typeface::Ptr typeface;
     };
 
-    Typeface::Ptr defaultFace;
     ReadWriteLock lock;
     Array<CachedFace> faces;
     size_t counter = 0;
@@ -184,6 +173,7 @@ void (*clearOpenGLGlyphCache)() = nullptr;
 void Typeface::clearTypefaceCache()
 {
     TypefaceCache::getInstance()->clear();
+    GlyphCacheRegistry::get().clear();
 
     RenderingHelpers::SoftwareRendererSavedState::clearGlyphCache();
 
@@ -220,7 +210,7 @@ public:
         const ScopedLock lock (mutex);
 
         if (auto ptr = getTypefacePtr (f))
-            return ptr->getNativeDetails().getFontAtPointSizeAndScale (f.getHeightInPoints(), f.getHorizontalScale());
+            return ptr->getNativeDetails()->getFontAtPointSizeAndScale (f.getHeightInPoints(), f.getHorizontalScale());
 
         return {};
     }
@@ -231,7 +221,7 @@ public:
 
         if (auto ptr = getTypefacePtr (f))
         {
-            const auto ascentDescent = ptr->getNativeDetails().getAscentDescent (f.getMetricsKind());
+            const auto ascentDescent = ptr->getNativeDetails()->getAscentDescent (f.getMetricsKind());
 
             auto adjusted = ascentDescent;
             adjusted.ascent = getAscentOverride().value_or (adjusted.ascent);
@@ -837,24 +827,6 @@ float Font::getHeightInPoints() const
 float Font::getAscentInPoints() const       { return font->getAscentDescent (*this).ascent  * getHeightInPoints(); }
 float Font::getDescentInPoints() const      { return font->getAscentDescent (*this).descent * getHeightInPoints(); }
 
-int Font::getStringWidth (const String& text) const
-{
-    JUCE_BEGIN_IGNORE_DEPRECATION_WARNINGS
-    return (int) std::ceil (getStringWidthFloat (text));
-    JUCE_END_IGNORE_DEPRECATION_WARNINGS
-}
-
-float Font::getStringWidthFloat (const String& text) const
-{
-    if (auto typeface = getTypefacePtr())
-    {
-        const auto w = typeface->getStringWidth (getMetricsKind(), text, getHeight(), getHorizontalScale());
-        return w + (getHeight() * getHorizontalScale() * getExtraKerningFactor() * (float) text.length());
-    }
-
-    return 0;
-}
-
 void Font::findFonts (Array<Font>& destArray)
 {
     for (auto& name : findAllTypefaceNames())
@@ -886,7 +858,7 @@ static bool characterNotRendered (uint32_t c)
 
 static bool isFontSuitableForCodepoint (const Font& font, juce_wchar c)
 {
-    const auto& hbFont = font.getNativeDetails().font;
+    const auto hbFont = font.getNativeDetails().font;
 
     if (hbFont == nullptr)
         return false;
@@ -994,7 +966,7 @@ Font::Native Font::getNativeDetails() const
 
 Typeface::Ptr Font::getDefaultTypefaceForFont (const Font& font)
 {
-    const auto resolvedTypeface = [&]() -> Typeface::Ptr
+    const auto resolvedTypeface = std::invoke ([&]() -> Typeface::Ptr
     {
         if (font.getTypefaceName() != getSystemUIFontName())
             return {};
@@ -1010,7 +982,7 @@ Typeface::Ptr Font::getDefaultTypefaceForFont (const Font& font)
         auto copy = font;
         copy.setTypefaceName (systemTypeface->getName());
         return getDefaultTypefaceForFont (copy);
-    }();
+    });
 
     if (resolvedTypeface != nullptr)
         return resolvedTypeface;

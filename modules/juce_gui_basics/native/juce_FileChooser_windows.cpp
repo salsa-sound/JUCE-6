@@ -296,7 +296,7 @@ private:
             {
                 HWND hwnd = nullptr;
 
-                if (auto window = addComSmartPtrOwner (d).getInterface<IOleWindow>())
+                if (auto window = ComSmartPtr (d, IncrementRef::yes).getInterface<IOleWindow>())
                     window->GetWindow (&hwnd);
 
                 ScopedLock lock (owner.deletingDialog);
@@ -827,7 +827,7 @@ public:
           nativeFileChooser (std::make_unique<Win32NativeFileChooser> (this, flagsIn, previewComp, fileChooser.startingFile,
                                                                        fileChooser.title, fileChooser.filters))
     {
-        auto mainMon = Desktop::getInstance().getDisplays().getPrimaryDisplay()->userArea;
+        auto mainMon = Desktop::getInstance().getDisplays().getPrimaryDisplay()->userBounds.toNearestInt();
 
         setBounds (mainMon.getX() + mainMon.getWidth() / 4,
                    mainMon.getY() + mainMon.getHeight() / 4,

@@ -105,13 +105,16 @@ void Thread::threadEntryPoint()
         if (affinityMask != 0)
             setCurrentThreadAffinityMask (affinityMask);
 
-        try
+        JUCE_AUTORELEASEPOOL
         {
-            run();
-        }
-        catch (...)
-        {
-            jassertfalse; // Your run() method mustn't throw any exceptions!
+            try
+            {
+                run();
+            }
+            catch (...)
+            {
+                jassertfalse; // Your run() method mustn't throw any exceptions!
+            }
         }
     }
 
@@ -261,7 +264,7 @@ bool Thread::stopThread (const int timeOutMilliseconds)
         if (isThreadRunning())
         {
             // very bad karma if this point is reached, as there are bound to be
-            // locks and events left in silly states when a thread is killed by force..
+            // locks and events left in silly states when a thread is killed by force
             jassertfalse;
             Logger::writeToLog ("!! killing thread by force !!");
 

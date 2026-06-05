@@ -145,7 +145,7 @@ MidiMessage::MidiMessage (const void* const d, const int dataSize, const double 
    : timeStamp (t), size (dataSize)
 {
     jassert (dataSize > 0);
-    // this checks that the length matches the data..
+    // this checks that the length matches the data
     jassert (dataSize > 3 || *(uint8*)d >= 0xf0 || getMessageLengthFromFirstByte (*(uint8*)d) == size);
 
     memcpy (allocateSpace (dataSize), d, (size_t) dataSize);
@@ -156,7 +156,7 @@ MidiMessage::MidiMessage (const int byte1, const double t) noexcept
 {
     packedData.asBytes[0] = (uint8) byte1;
 
-    // check that the length matches the data..
+    // check that the length matches the data
     jassert (byte1 >= 0xf0 || getMessageLengthFromFirstByte ((uint8) byte1) == 1);
 }
 
@@ -166,7 +166,7 @@ MidiMessage::MidiMessage (const int byte1, const int byte2, const double t) noex
     packedData.asBytes[0] = (uint8) byte1;
     packedData.asBytes[1] = (uint8) byte2;
 
-    // check that the length matches the data..
+    // check that the length matches the data
     jassert (byte1 >= 0xf0 || getMessageLengthFromFirstByte ((uint8) byte1) == 2);
 }
 
@@ -177,7 +177,7 @@ MidiMessage::MidiMessage (const int byte1, const int byte2, const int byte3, con
     packedData.asBytes[1] = (uint8) byte2;
     packedData.asBytes[2] = (uint8) byte3;
 
-    // check that the length matches the data..
+    // check that the length matches the data
     jassert (byte1 >= 0xf0 || getMessageLengthFromFirstByte ((uint8) byte1) == 3);
 }
 
@@ -688,11 +688,21 @@ bool MidiMessage::isSysEx() const noexcept
 
 MidiMessage MidiMessage::createSysExMessage (const void* sysexData, const int dataSize)
 {
+    jassert (sysexData != nullptr);
+    jassert (dataSize > 0);
+
     HeapBlock<uint8> m (dataSize + 2);
 
     m[0] = 0xf0;
     memcpy (m + 1, sysexData, (size_t) dataSize);
     m[dataSize + 1] = 0xf7;
+
+    // The sysex data should not contain any header or tail status bytes, these
+    // will be added automatically.
+   #if JUCE_ASSERTIONS_ENABLED_OR_LOGGED
+    for (auto i = 1; i < dataSize + 1; ++i)
+        jassert (m[i] != 0xf0 && m[i] != 0xf7);
+   #endif
 
     return MidiMessage (m, dataSize + 2);
 }

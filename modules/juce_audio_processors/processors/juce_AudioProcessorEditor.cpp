@@ -42,7 +42,7 @@ AudioProcessorEditor::AudioProcessorEditor (AudioProcessor& p) noexcept  : proce
 
 AudioProcessorEditor::AudioProcessorEditor (AudioProcessor* p) noexcept  : processor (*p)
 {
-    // the filter must be valid..
+    // the filter must be valid
     jassert (p != nullptr);
     initialise();
 }
@@ -50,7 +50,7 @@ AudioProcessorEditor::AudioProcessorEditor (AudioProcessor* p) noexcept  : proce
 AudioProcessorEditor::~AudioProcessorEditor()
 {
     // if this fails, then the wrapper hasn't called editorBeingDeleted() on the
-    // filter for some reason..
+    // filter for some reason
     jassert (processor.getActiveEditor() != this);
     removeComponentListener (resizeListener.get());
 }
@@ -91,7 +91,7 @@ void AudioProcessorEditor::setResizeLimits (int newMinimumWidth,
 {
     if (constrainer != nullptr && constrainer != &defaultConstrainer)
     {
-        // if you've set up a custom constrainer then these settings won't have any effect..
+        // if you've set up a custom constrainer then these settings won't have any effect
         jassertfalse;
         return;
     }
@@ -158,6 +158,36 @@ void AudioProcessorEditor::setBoundsConstrained (Rectangle<int> newBounds)
                                         newBounds.getX() != currentBounds.getX() && newBounds.getRight()  == currentBounds.getRight(),
                                         newBounds.getY() == currentBounds.getY() && newBounds.getBottom() != currentBounds.getBottom(),
                                         newBounds.getX() == currentBounds.getX() && newBounds.getRight()  != currentBounds.getRight());
+}
+
+AudioProcessorEditorARAExtension* AudioProcessorEditor::getARAClientExtensions()
+{
+   #if JucePlugin_Enable_ARA
+    if (auto* extensions = dynamic_cast<AudioProcessorEditorARAExtension*> (this))
+    {
+        //  To silence this jassert there are two options:
+        //
+        //  1. - Override AudioProcessorEditor::getARAClientExtensions() and
+        //       return the "this" pointer.
+        //
+        //     - This option has the advantage of being quick and easy,
+        //       and avoids the above dynamic_cast.
+        //
+        //  2. - Create a new object that inherits from AudioProcessorEditorARAClientExtension.
+        //
+        //     - Port your existing functionality from the AudioProcessorEditor
+        //       to the new object.
+        //
+        //     - Return a pointer to the object in AudioProcessorEditor::getARAClientExtensions().
+        //
+        //     - This option has the advantage of allowing you to break
+        //       up your AudioProcessorEditor into smaller composable objects.
+        jassertfalse;
+        return extensions;
+    }
+   #endif
+
+    return nullptr;
 }
 
 void AudioProcessorEditor::editorResized (bool wasResized)

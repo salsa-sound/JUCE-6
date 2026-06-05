@@ -353,10 +353,7 @@ struct CADisplayLinkDeleter
 
 - (JuceUIViewController*) init;
 
-- (NSUInteger) supportedInterfaceOrientations;
-- (BOOL) shouldAutorotateToInterfaceOrientation: (UIInterfaceOrientation) interfaceOrientation;
-- (void) willRotateToInterfaceOrientation: (UIInterfaceOrientation) toInterfaceOrientation duration: (NSTimeInterval) duration;
-- (void) didRotateFromInterfaceOrientation: (UIInterfaceOrientation) fromInterfaceOrientation;
+- (UIInterfaceOrientationMask) supportedInterfaceOrientations;
 - (void) viewWillTransitionToSize: (CGSize) size withTransitionCoordinator: (id<UIViewControllerTransitionCoordinator>) coordinator;
 - (BOOL) prefersStatusBarHidden;
 - (UIStatusBarStyle) preferredStatusBarStyle;
@@ -451,7 +448,7 @@ public:
 
     void handleTouches (UIEvent*, MouseEventFlags);
 
-    API_AVAILABLE (ios (13.0)) void onHover (UIHoverGestureRecognizer*);
+    API_AVAILABLE (ios (13.0)) void onHover (UIHoverGestureRecognizer*, MouseInputSource::InputSourceType);
     void onScroll (UIPanGestureRecognizer*);
 
     Range<int> getMarkedTextRange() const
@@ -547,17 +544,78 @@ private:
         [controller setNeedsStatusBarAppearanceUpdate];
     }
 
-    void windowSceneChanged() override
+    void updateSceneForWindow()
     {
         if (isSharedWindow)
             return;
 
-        if (@available (ios 13, *))
+        const auto sceneDidChange = std::invoke ([&]
         {
-            window.windowScene = windowSceneTracker->getWindowScene();
+            if (@available (iOS 13, *))
+            {
+                auto* currentScene = window != nil ? [window windowScene] : nil;
+                return windowSceneTracker->getWindowScene() != currentScene;
+            }
+
+            return false;
+        });
+
+        if (! sceneDidChange)
+        {
+            updateScreenBounds();
+            return;
         }
 
+        auto* newWindow = std::invoke ([&]() -> JuceUIWindow*
+        {
+            if (@available (iOS 13, *))
+            {
+                if (auto* scene = windowSceneTracker->getWindowScene())
+                    return [[JuceUIWindow alloc] initWithWindowScene: scene];
+            }
+            else if (window == nil)
+            {
+                auto r = convertToCGRect (component.getBounds());
+                r.origin.y = [UIScreen mainScreen].bounds.size.height - (r.origin.y + r.size.height);
+
+                return [[JuceUIWindow alloc] initWithFrame: r];
+            }
+
+            return nil;
+        });
+
+        if (newWindow == nil)
+            return;
+
+        if (window != nil)
+        {
+            [(JuceUIWindow*) window setOwner: nullptr];
+
+            if (@available (iOS 13, *))
+                window.windowScene = nil;
+
+            window.rootViewController = nil;
+            [window release];
+            window = nil;
+        }
+
+        [newWindow setOwner: this];
+        newWindow.rootViewController = controller;
+        newWindow.hidden = ! isShowing();
+        newWindow.opaque = component.isOpaque();
+        newWindow.backgroundColor = [[UIColor blackColor] colorWithAlphaComponent: 0];
+
+        if (component.isAlwaysOnTop())
+            newWindow.windowLevel = UIWindowLevelAlert;
+
+        window = newWindow;
+
         updateScreenBounds();
+    }
+
+    void windowSceneChanged() override
+    {
+        updateSceneForWindow();
     }
 
     //==============================================================================
@@ -621,29 +679,9 @@ MultiTouchMapper<UITouch*> UIViewComponentPeer::currentTouches;
     return self;
 }
 
-- (NSUInteger) supportedInterfaceOrientations
+- (UIInterfaceOrientationMask) supportedInterfaceOrientations
 {
     return Orientations::getSupportedOrientations();
-}
-
-- (BOOL) shouldAutorotateToInterfaceOrientation: (UIInterfaceOrientation) interfaceOrientation
-{
-    return Desktop::getInstance().isOrientationEnabled (Orientations::convertToJuce (interfaceOrientation));
-}
-
-- (void) willRotateToInterfaceOrientation: (UIInterfaceOrientation) toInterfaceOrientation
-                                 duration: (NSTimeInterval) duration
-{
-    ignoreUnused (toInterfaceOrientation, duration);
-
-    [UIView setAnimationsEnabled: NO]; // disable this because it goes the wrong way and looks like crap.
-}
-
-- (void) didRotateFromInterfaceOrientation: (UIInterfaceOrientation) fromInterfaceOrientation
-{
-    ignoreUnused (fromInterfaceOrientation);
-    sendScreenBoundsUpdate (self);
-    [UIView setAnimationsEnabled: YES];
 }
 
 - (void) viewWillTransitionToSize: (CGSize) size withTransitionCoordinator: (id<UIViewControllerTransitionCoordinator>) coordinator
@@ -660,7 +698,7 @@ MultiTouchMapper<UITouch*> UIViewComponentPeer::currentTouches;
     if (isKioskModeView (self))
         return true;
 
-    return [[[NSBundle mainBundle] objectForInfoDictionaryKey: @"UIStatusBarHidden"] boolValue];
+    return [super prefersStatusBarHidden];
 }
 
  - (BOOL) prefersHomeIndicatorAutoHidden
@@ -756,10 +794,21 @@ MultiTouchMapper<UITouch*> UIViewComponentPeer::currentTouches;
 
     if (@available (iOS 13.4, *))
     {
-        auto hoverRecognizer = [[[UIHoverGestureRecognizer alloc] initWithTarget: self action: @selector (onHover:)] autorelease];
-        [hoverRecognizer setCancelsTouchesInView: NO];
-        [hoverRecognizer setRequiresExclusiveTouchType: YES];
-        [self addGestureRecognizer: hoverRecognizer];
+        {
+            auto hoverRecognizer = [[[UIHoverGestureRecognizer alloc] initWithTarget: self action: @selector (onMouseHover:)] autorelease];
+            [hoverRecognizer setCancelsTouchesInView: NO];
+            [hoverRecognizer setRequiresExclusiveTouchType: YES];
+            [hoverRecognizer setAllowedTouchTypes: @[[NSNumber numberWithInteger: UITouchTypeIndirectPointer]]];
+            [self addGestureRecognizer: hoverRecognizer];
+        }
+
+        {
+            auto hoverRecognizer = [[[UIHoverGestureRecognizer alloc] initWithTarget: self action: @selector (onPenHover:)] autorelease];
+            [hoverRecognizer setCancelsTouchesInView: NO];
+            [hoverRecognizer setRequiresExclusiveTouchType: YES];
+            [hoverRecognizer setAllowedTouchTypes: @[[NSNumber numberWithInteger: UITouchTypePencil]]];
+            [self addGestureRecognizer: hoverRecognizer];
+        }
 
         auto panRecognizer = [[[UIPanGestureRecognizer alloc] initWithTarget: self action: @selector (onScroll:)] autorelease];
         [panRecognizer setCancelsTouchesInView: NO];
@@ -872,10 +921,16 @@ MultiTouchMapper<UITouch*> UIViewComponentPeer::currentTouches;
     [self touchesEnded: touches withEvent: event];
 }
 
-- (void) onHover: (UIHoverGestureRecognizer*) gesture API_AVAILABLE (ios (13))
+- (void) onPenHover: (UIHoverGestureRecognizer*) gesture API_AVAILABLE (ios (13))
 {
     if (owner != nullptr)
-        owner->onHover (gesture);
+        owner->onHover (gesture, MouseInputSource::InputSourceType::pen);
+}
+
+- (void) onMouseHover: (UIHoverGestureRecognizer*) gesture API_AVAILABLE (ios (13))
+{
+    if (owner != nullptr)
+        owner->onHover (gesture, MouseInputSource::InputSourceType::mouse);
 }
 
 - (void) onScroll: (UIPanGestureRecognizer*) gesture
@@ -955,6 +1010,15 @@ static void updateModifiers (const UIKeyModifierFlags flags)
 }
 
 API_AVAILABLE (ios(13.4))
+static void updateButtonMask (const UIEventButtonMask mask)
+{
+    const auto convert = [&mask] (UIEventButtonMask f, int result) { return (mask & f) != 0 ? result : 0; };
+    const auto juceFlags = convert (UIEventButtonMaskPrimary, ModifierKeys::leftButtonModifier)
+                         | convert (UIEventButtonMaskSecondary, ModifierKeys::rightButtonModifier);
+    ModifierKeys::currentModifiers = ModifierKeys::getCurrentModifiers().withoutMouseButtons().withFlags (juceFlags);
+}
+
+API_AVAILABLE (ios(13.4))
 static int getKeyCodeForKey (UIKey* key)
 {
     return getKeyCodeForCharacters ([key charactersIgnoringModifiers]);
@@ -997,6 +1061,7 @@ static bool attemptToConsumeKeys (JuceUIView* view, NSSet<UIPress*>* presses)
             auto isEscape = false;
 
             updateModifiers ([event modifierFlags]);
+            updateButtonMask ([event buttonMask]);
 
             for (UIPress* press in presses)
             {
@@ -1026,6 +1091,7 @@ static bool doKeysUp (UIViewComponentPeer* owner, NSSet<UIPress*>* presses, UIPr
     if (@available (iOS 13.4, *))
     {
         updateModifiers ([event modifierFlags]);
+        updateButtonMask ([event buttonMask]);
 
         for (UIPress* press in presses)
             if (auto* key = [press key])
@@ -1085,7 +1151,7 @@ static void postTraitChangeNotification (UITraitCollection* previousTraitCollect
 {
     [super traitCollectionDidChange: previousTraitCollection];
 
-    if (@available (ios 17, *))
+    if (@available (iOS 17, *))
         {} // do nothing
     else
         postTraitChangeNotification (previousTraitCollection);
@@ -1791,27 +1857,12 @@ UIViewComponentPeer::UIViewComponentPeer (Component& comp,
         r = convertToCGRect (component.getBounds());
         r.origin.y = [UIScreen mainScreen].bounds.size.height - (r.origin.y + r.size.height);
 
-        window = [[JuceUIWindow alloc] initWithFrame: r];
-
-        if (@available (ios 13, *))
-        {
-            window.windowScene = windowSceneTracker->getWindowScene();
-        }
-
-        [((JuceUIWindow*) window) setOwner: this];
-
         controller = [[JuceUIViewController alloc] init];
         controller.view = view;
-        window.rootViewController = controller;
-
-        window.hidden = true;
-        window.opaque = component.isOpaque();
-        window.backgroundColor = [[UIColor blackColor] colorWithAlphaComponent: 0];
-
-        if (component.isAlwaysOnTop())
-            window.windowLevel = UIWindowLevelAlert;
 
         view.frame = CGRectMake (0, 0, r.size.width, r.size.height);
+
+        updateSceneForWindow();
     }
 
     setTitle (component.getName());
@@ -1834,7 +1885,7 @@ UIViewComponentPeer::~UIViewComponentPeer()
     [view release];
     [controller release];
 
-    if (! isSharedWindow)
+    if (! isSharedWindow && window != nil)
     {
         [((JuceUIWindow*) window) setOwner: nil];
 
@@ -1848,7 +1899,7 @@ UIViewComponentPeer::~UIViewComponentPeer()
 //==============================================================================
 void UIViewComponentPeer::setVisible (bool shouldBeVisible)
 {
-    if (! isSharedWindow)
+    if (! isSharedWindow && window != nil)
         window.hidden = ! shouldBeVisible;
 
     view.hidden = ! shouldBeVisible;
@@ -1877,7 +1928,9 @@ void UIViewComponentPeer::setBounds (const Rectangle<int>& newBounds, const bool
     }
     else
     {
-        window.frame = convertToCGRect (newBounds);
+        if (window != nil)
+            window.frame = convertToCGRect (newBounds);
+
         view.frame = CGRectMake (0, 0, (CGFloat) newBounds.getWidth(), (CGFloat) newBounds.getHeight());
 
         handleMovedOrResized();
@@ -1917,14 +1970,15 @@ Point<float> UIViewComponentPeer::globalToLocal (Point<float> screenPosition)
 
 void UIViewComponentPeer::setAlpha (float newAlpha)
 {
-    [view.window setAlpha: (CGFloat) newAlpha];
+    if (view.window != nil)
+        [view.window setAlpha: (CGFloat) newAlpha];
 }
 
 void UIViewComponentPeer::setFullScreen (bool shouldBeFullScreen)
 {
     if (! isSharedWindow)
     {
-        auto r = shouldBeFullScreen ? Desktop::getInstance().getDisplays().getPrimaryDisplay()->userArea
+        auto r = shouldBeFullScreen ? Desktop::getInstance().getDisplays().getPrimaryDisplay()->userBounds.getSmallestIntegerContainer()
                                     : lastNonFullscreenBounds;
 
         if ((! shouldBeFullScreen) && r.isEmpty())
@@ -1949,7 +2003,7 @@ void UIViewComponentPeer::updateScreenBounds()
     auto& desktop = Desktop::getInstance();
 
     auto oldArea = component.getBounds();
-    auto oldDesktop = desktop.getDisplays().getPrimaryDisplay()->userArea;
+    auto oldDesktop = desktop.getDisplays().getPrimaryDisplay()->userBounds.getSmallestIntegerContainer();
 
     forceDisplayUpdate();
 
@@ -1960,7 +2014,7 @@ void UIViewComponentPeer::updateScreenBounds()
     }
     else if (! isSharedWindow)
     {
-        auto newDesktop = desktop.getDisplays().getPrimaryDisplay()->userArea;
+        auto newDesktop = desktop.getDisplays().getPrimaryDisplay()->userBounds.getSmallestIntegerContainer();
 
         if (newDesktop != oldDesktop)
         {
@@ -1995,7 +2049,7 @@ bool UIViewComponentPeer::contains (Point<int> localPos, bool trueIfInAChildWind
 
 bool UIViewComponentPeer::setAlwaysOnTop (bool alwaysOnTop)
 {
-    if (! isSharedWindow)
+    if (! isSharedWindow && window != nil)
         window.windowLevel = alwaysOnTop ? UIWindowLevelAlert : UIWindowLevelNormal;
 
     return true;
@@ -2025,24 +2079,26 @@ void UIViewComponentPeer::toBehind (ComponentPeer* other)
 
 void UIViewComponentPeer::setIcon (const Image& /*newIcon*/)
 {
-    // to do..
+    // todo
 }
 
 //==============================================================================
-static float getMaximumTouchForce (UITouch* touch) noexcept
+static MouseInputSource::InputSourceType getInputSourceType (UITouchType type)
 {
-    if ([touch respondsToSelector: @selector (maximumPossibleForce)])
-        return (float) touch.maximumPossibleForce;
+    switch (type)
+    {
+        case UITouchTypeDirect:
+        case UITouchTypeIndirect:
+            return MouseInputSource::InputSourceType::touch;
 
-    return 0.0f;
-}
+        case UITouchTypePencil:
+            return MouseInputSource::InputSourceType::pen;
 
-static float getTouchForce (UITouch* touch) noexcept
-{
-    if ([touch respondsToSelector: @selector (force)])
-        return (float) touch.force;
+        case UITouchTypeIndirectPointer:
+            return MouseInputSource::InputSourceType::mouse;
+    }
 
-    return 0.0f;
+    return {};
 }
 
 void UIViewComponentPeer::handleTouches (UIEvent* event, MouseEventFlags mouseEventFlags)
@@ -2050,9 +2106,21 @@ void UIViewComponentPeer::handleTouches (UIEvent* event, MouseEventFlags mouseEv
     if (event == nullptr)
         return;
 
+    const auto isUp = [] (MouseEventFlags m)
+    {
+        return m == MouseEventFlags::up || m == MouseEventFlags::upAndCancel;
+    };
+
     if (@available (iOS 13.4, *))
     {
         updateModifiers ([event modifierFlags]);
+
+        auto mask = [event buttonMask];
+
+        if (mask == 0 && ! isUp (mouseEventFlags))
+            mask = UIEventButtonMaskPrimary;
+
+        updateButtonMask (mask);
     }
 
     NSArray* touches = [[event touchesForView: view] allObjects];
@@ -2060,7 +2128,7 @@ void UIViewComponentPeer::handleTouches (UIEvent* event, MouseEventFlags mouseEv
     for (unsigned int i = 0; i < [touches count]; ++i)
     {
         UITouch* touch = [touches objectAtIndex: i];
-        auto maximumForce = getMaximumTouchForce (touch);
+        auto maximumForce = (float) touch.maximumPossibleForce;
 
         if ([touch phase] == UITouchPhaseStationary && maximumForce <= 0)
             continue;
@@ -2070,25 +2138,26 @@ void UIViewComponentPeer::handleTouches (UIEvent* event, MouseEventFlags mouseEv
 
         auto time = getMouseTime (event);
         auto touchIndex = currentTouches.getIndexOfTouch (this, touch);
+        auto type = getInputSourceType ([touch type]);
 
         auto modsToSend = ModifierKeys::getCurrentModifiers();
-
-        auto isUp = [] (MouseEventFlags m)
-        {
-            return m == MouseEventFlags::up || m == MouseEventFlags::upAndCancel;
-        };
 
         if (mouseEventFlags == MouseEventFlags::down)
         {
             if ([touch phase] != UITouchPhaseBegan)
                 continue;
 
-            ModifierKeys::currentModifiers = ModifierKeys::getCurrentModifiers().withoutMouseButtons().withFlags (ModifierKeys::leftButtonModifier);
             modsToSend = ModifierKeys::getCurrentModifiers();
 
-            // this forces a mouse-enter/up event, in case for some reason we didn't get a mouse-up before.
-            handleMouseEvent (MouseInputSource::InputSourceType::touch, pos, modsToSend.withoutMouseButtons(),
-                              MouseInputSource::defaultPressure, MouseInputSource::defaultOrientation, time, {}, touchIndex);
+            // this forces a mouse-enter/up event, in case for some reason we didn't get a mouse-up before
+            handleMouseEvent (type,
+                              pos,
+                              modsToSend.withoutMouseButtons(),
+                              MouseInputSource::defaultPressure,
+                              MouseInputSource::defaultOrientation,
+                              time,
+                              {},
+                              touchIndex);
 
             if (! isValidPeer (this)) // (in case this component was deleted by the event)
                 return;
@@ -2111,20 +2180,32 @@ void UIViewComponentPeer::handleTouches (UIEvent* event, MouseEventFlags mouseEv
             modsToSend = ModifierKeys::currentModifiers = ModifierKeys::getCurrentModifiers().withoutMouseButtons();
         }
 
-        // NB: some devices return 0 or 1.0 if pressure is unknown, so we'll clip our value to a believable range:
-        auto pressure = maximumForce > 0 ? jlimit (0.0001f, 0.9999f, getTouchForce (touch) / maximumForce)
+        // Some devices return 0 or 1.0 if pressure is unknown, so we'll clip our value to a believable range
+        auto pressure = maximumForce > 0 ? jlimit (0.0001f, 0.9999f, (float) touch.force / maximumForce)
                                          : MouseInputSource::defaultPressure;
 
-        handleMouseEvent (MouseInputSource::InputSourceType::touch,
-                          pos, modsToSend, pressure, MouseInputSource::defaultOrientation, time, { }, touchIndex);
+        handleMouseEvent (type,
+                          pos,
+                          modsToSend,
+                          pressure,
+                          MouseInputSource::defaultOrientation,
+                          time,
+                          {},
+                          touchIndex);
 
         if (! isValidPeer (this)) // (in case this component was deleted by the event)
             return;
 
         if (isUp (mouseEventFlags))
         {
-            handleMouseEvent (MouseInputSource::InputSourceType::touch, MouseInputSource::offscreenMousePos, modsToSend,
-                              MouseInputSource::defaultPressure, MouseInputSource::defaultOrientation, time, {}, touchIndex);
+            handleMouseEvent (type,
+                              type == MouseInputSource::InputSourceType::touch ? MouseInputSource::offscreenMousePos : pos,
+                              modsToSend,
+                              MouseInputSource::defaultPressure,
+                              MouseInputSource::defaultOrientation,
+                              time,
+                              {},
+                              touchIndex);
 
             if (! isValidPeer (this))
                 return;
@@ -2132,15 +2213,19 @@ void UIViewComponentPeer::handleTouches (UIEvent* event, MouseEventFlags mouseEv
     }
 }
 
-void UIViewComponentPeer::onHover (UIHoverGestureRecognizer* gesture)
+void UIViewComponentPeer::onHover (UIHoverGestureRecognizer* gesture, MouseInputSource::InputSourceType type)
 {
+    if (ModifierKeys::getCurrentModifiers().isAnyMouseButtonDown())
+        return;
+
     auto pos = convertToPointFloat ([gesture locationInView: view]);
     juce_lastMousePos = pos + getBounds (true).getPosition().toFloat();
 
-    handleMouseEvent (MouseInputSource::InputSourceType::touch,
+    handleMouseEvent (type,
                       pos,
-                      ModifierKeys::getCurrentModifiers(),
-                      MouseInputSource::defaultPressure, MouseInputSource::defaultOrientation,
+                      ModifierKeys::getCurrentModifiers().withoutMouseButtons(),
+                      MouseInputSource::defaultPressure,
+                      MouseInputSource::defaultOrientation,
                       UIViewComponentPeer::getMouseTime ([[NSProcessInfo processInfo] systemUptime]),
                       {});
 }
@@ -2208,11 +2293,11 @@ void UIViewComponentPeer::grabFocus()
 
 void UIViewComponentPeer::textInputRequired (Point<int>, TextInputTarget&)
 {
-    // We need to restart the text input session so that the keyboard can change types if necessary.
+    // We need to reload the text input session so that the keyboard can change types if necessary.
     if ([hiddenTextInput.get() isFirstResponder])
-        [hiddenTextInput.get() resignFirstResponder];
-
-    [hiddenTextInput.get() becomeFirstResponder];
+        [hiddenTextInput.get() reloadInputViews];
+    else
+        [hiddenTextInput.get() becomeFirstResponder];
 }
 
 void UIViewComponentPeer::closeInputMethodContext()

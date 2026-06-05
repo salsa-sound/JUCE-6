@@ -329,7 +329,8 @@ public:
 private:
     struct DelegateClass final : public ObjCClass<NSObject>
     {
-        DelegateClass()  : ObjCClass<NSObject> ("JUCEDelegate_")
+        DelegateClass()
+            : ObjCClass ("JUCEDelegate_")
         {
             addMethod (darkModeSelector, [] (id, SEL, NSNotification*) { Desktop::getInstance().darkModeChanged(); });
             registerClass();
@@ -434,10 +435,10 @@ struct DisplaySettingsChangeCallback final : private DeletedAtShutdown
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (DisplaySettingsChangeCallback)
 };
 
-static Rectangle<int> convertDisplayRect (NSRect r, CGFloat mainScreenBottom)
+static Rectangle<float> convertDisplayRect (NSRect r, CGFloat mainScreenBottom)
 {
     r.origin.y = mainScreenBottom - (r.origin.y + r.size.height);
-    return convertToRectInt (r);
+    return convertToRectFloat (r);
 }
 
 static Displays::Display getDisplayFromScreen (NSScreen* s, CGFloat& mainScreenBottom, const float masterScale)
@@ -449,8 +450,9 @@ static Displays::Display getDisplayFromScreen (NSScreen* s, CGFloat& mainScreenB
     if (d.isMain)
         mainScreenBottom = [s frame].size.height;
 
-    d.userArea  = convertDisplayRect ([s visibleFrame], mainScreenBottom) / masterScale;
-    d.totalArea = convertDisplayRect ([s frame], mainScreenBottom) / masterScale;
+    d.userBounds     = convertDisplayRect ([s visibleFrame], mainScreenBottom) / masterScale;
+    d.logicalBounds  = convertDisplayRect ([s frame],        mainScreenBottom) / masterScale;
+    d.physicalBounds = (convertDisplayRect ([s frame], mainScreenBottom) * s.backingScaleFactor).toNearestInt();
     d.scale = masterScale;
 
     if ([s respondsToSelector: @selector (backingScaleFactor)])
@@ -473,7 +475,7 @@ static Displays::Display getDisplayFromScreen (NSScreen* s, CGFloat& mainScreenB
     return d;
 }
 
-void Displays::findDisplays (const float masterScale)
+void Displays::findDisplays (const Desktop& desktop)
 {
     JUCE_AUTORELEASEPOOL
     {
@@ -483,7 +485,7 @@ void Displays::findDisplays (const float masterScale)
         CGFloat mainScreenBottom = 0;
 
         for (NSScreen* s in [NSScreen screens])
-            displays.add (getDisplayFromScreen (s, mainScreenBottom, masterScale));
+            displays.add (getDisplayFromScreen (s, mainScreenBottom, desktop.getGlobalScaleFactor()));
     }
 }
 

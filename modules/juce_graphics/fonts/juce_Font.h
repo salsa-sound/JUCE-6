@@ -290,7 +290,14 @@ public:
         This is the maximum height, from the top of the ascent to the bottom of the
         descenders.
 
-        @see withHeight, setHeightWithoutChangingWidth, getAscent
+        There can be a notable exception to this rule however, if you use the
+        ascent/descent override feature. This feature follows CSS semantics and acts
+        on the point height of the Font. So if you specified the font's height using
+        setHeight() and also specified an ascent or descent override, then the visually
+        rendered height of the Font can be different from the value returned by
+        getHeight().
+
+        @see withHeight, setHeightWithoutChangingWidth, getAscent, setAscentOverride
     */
     float getHeight() const noexcept;
 
@@ -528,43 +535,6 @@ public:
                           float newKerningAmount);
 
     //==============================================================================
-    /** Returns the total width of a string as it would be drawn using this font.
-        For a more accurate floating-point result, use getStringWidthFloat().
-
-        This function does not take font fallback into account. If this font doesn't
-        include glyphs to represent all characters in the string, then the width
-        will be computed as though those characters were replaced with the "glyph not
-        found" character.
-
-        If you are trying to find the amount of space required to display a given string,
-        you'll get more accurate results by actually measuring the results of whichever
-        text layout engine (e.g. GlyphArrangement, TextLayout) you'll use when displaying
-        the string.
-
-        @see TextLayout::getStringWidth(), GlyphArrangement::getStringWidthInt()
-    */
-    [[deprecated ("Use GlyphArrangement or TextLayout to compute text layouts")]]
-    int getStringWidth (const String& text) const;
-
-    /** Returns the total width of a string as it would be drawn using this font.
-        @see getStringWidth
-
-        This function does not take font fallback into account. If this font doesn't
-        include glyphs to represent all characters in the string, then the width
-        will be computed as though those characters were replaced with the "glyph not
-        found" character.
-
-        If you are trying to find the amount of space required to display a given string,
-        you'll get more accurate results by actually measuring the results of whichever
-        text layout engine (e.g. GlyphArrangement, TextLayout) you'll use when displaying
-        the string.
-
-        @see TextLayout::getStringWidth(), GlyphArrangement::getStringWidth()
-    */
-    [[deprecated ("Use GlyphArrangement or TextLayout to compute text layouts")]]
-    float getStringWidthFloat (const String& text) const;
-
-    //==============================================================================
     /** Returns the main typeface used by this font.
 
         Note: This will only ever return the typeface for the "main" family.
@@ -652,12 +622,19 @@ public:
     */
     Native getNativeDetails() const;
 
+    /*  @internal
+        The factor by which a JUCE font height should be multiplied in order to convert to a font
+        size in points.
+
+        May be inf if the font ascent and descent overrides have both been set to 0!
+    */
+    float getHeightToPointsFactor() const;
+
 private:
     //==============================================================================
     static bool compare (const Font&, const Font&) noexcept;
 
     void dupeInternalIfShared();
-    float getHeightToPointsFactor() const;
 
     friend struct GraphicsFontHelpers;
 
