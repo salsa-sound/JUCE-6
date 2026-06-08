@@ -32,6 +32,8 @@
   ==============================================================================
 */
 
+#include <cassert>
+
 namespace juce
 {
 
@@ -204,6 +206,9 @@ class MidiDataConcatenator
 public:
     MidiDataConcatenator (int initialBufferSize)
     {
+        //Max Broke this
+        assert(false);
+
         pendingSysexData.reserve ((size_t) initialBufferSize);
     }
 
@@ -239,13 +244,13 @@ public:
                     if (pendingSysexData.empty())
                         pendingSysexTime = time;
 
-                    pendingSysexData.insert (pendingSysexData.end(), bytesThisTime.begin(), bytesThisTime.end());
+                    //pendingSysexData.insert (pendingSysexData.end(), bytesThisTime.begin(), bytesThisTime.end());
                     return;
                 }
 
                 case SysexExtractorCallbackKind::lastSysex:
                 {
-                    pendingSysexData.insert (pendingSysexData.end(), bytesThisTime.begin(), bytesThisTime.end());
+                    //pendingSysexData.insert (pendingSysexData.end(), bytesThisTime.begin(), bytesThisTime.end());
 
                     if (pendingSysexData.empty())
                     {
@@ -253,7 +258,7 @@ public:
                         return;
                     }
 
-                    if (pendingSysexData.back() == std::byte { 0xf7 })
+                    if (pendingSysexData.back() == 0xf7)
                     {
                         callback.handleIncomingMidiMessage (input,
                                                             MidiMessage (pendingSysexData.data(),
@@ -288,7 +293,7 @@ public:
 
 private:
     BytestreamSysexExtractor extractor;
-    std::vector<std::byte> pendingSysexData;
+    std::vector<uint8_t> pendingSysexData;
     double pendingSysexTime = 0;
 
     JUCE_DECLARE_NON_COPYABLE (MidiDataConcatenator)

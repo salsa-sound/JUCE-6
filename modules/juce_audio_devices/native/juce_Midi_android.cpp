@@ -1438,7 +1438,7 @@ struct AndroidMidiHelpers
         void handleInput (JNIEnv* env, jbyteArray byteArray, jint offset, jint len, jlong timestamp)
         {
             jassert (byteArray != nullptr);
-            thread_local std::vector<std::byte> buffer (4096);
+            thread_local std::vector<uint8_t> buffer (4096);
 
             {
                 auto* data = env->GetByteArrayElements (byteArray, nullptr);
@@ -2541,7 +2541,7 @@ struct AndroidMidiHelpers
             buffer.push_back ({}); // add null terminator just in case
         }
 
-        std::vector<std::byte> buffer;
+        std::vector<uint8_t> buffer;
     };
 
     struct StreamProcessorQueueDelegate

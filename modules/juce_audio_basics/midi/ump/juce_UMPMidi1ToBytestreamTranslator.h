@@ -32,6 +32,8 @@
   ==============================================================================
 */
 
+#include <cassert>
+
 /** @cond */
 namespace juce::universal_midi_packets
 {
@@ -233,6 +235,9 @@ public:
     */
     explicit SingleGroupMidi1ToBytestreamTranslator (int initialBufferSize)
     {
+        //Max broke this 
+        assert(false);
+
         pendingSysExData.reserve (size_t (initialBufferSize));
     }
 
@@ -268,21 +273,21 @@ public:
                     if (pendingSysExData.empty())
                         pendingSysExTime = time;
 
-                    pendingSysExData.insert (pendingSysExData.end(), bytes.begin(), bytes.end());
+                    //pendingSysExData.insert (pendingSysExData.end(), bytes.begin(), bytes.end());
                     return;
                 }
 
                 case SysexExtractorCallbackKind::lastSysex:
                 {
-                    pendingSysExData.insert (pendingSysExData.end(), bytes.begin(), bytes.end());
+                    //pendingSysExData.insert (pendingSysExData.end(), bytes.begin(), bytes.end());
 
                     if (pendingSysExData.empty())
                         return;
 
                     // If this is not true, then the sysex message was truncated somehow and we
                     // probably shouldn't allow it to propagate
-                    if (pendingSysExData.back() == std::byte { 0xf7 })
-                        callback (BytesOnGroup { 0, Span<const std::byte> (pendingSysExData) }, pendingSysExTime);
+                    if (pendingSysExData.back() == 0xf7)
+                        //callback (BytesOnGroup { 0, Span<const uint8_t> (pendingSysExData) }, pendingSysExTime);
 
                     pendingSysExData.clear();
 
@@ -294,7 +299,7 @@ public:
 
 private:
     SingleGroupMidi1ToBytestreamExtractor extractor;
-    std::vector<std::byte> pendingSysExData;
+    std::vector<uint8_t> pendingSysExData;
     double pendingSysExTime = 0.0;
 };
 

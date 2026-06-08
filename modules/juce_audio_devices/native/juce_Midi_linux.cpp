@@ -244,7 +244,7 @@ struct AlsaMidiHelpers
             std::vector<pollfd> pfd (static_cast<size_t> (numPfds));
             snd_seq_poll_descriptors (seqHandle, pfd.data(), (unsigned int) numPfds, POLLIN);
 
-            std::vector<std::byte> buffer (maxEventSize);
+            std::vector<uint8_t> buffer (maxEventSize);
 
             while (! shouldStop)
             {

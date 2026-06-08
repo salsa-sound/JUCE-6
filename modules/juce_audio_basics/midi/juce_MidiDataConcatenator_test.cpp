@@ -103,7 +103,7 @@ public:
                                         std::byte (0x60), // second data byte
                                         std::byte (0x70), // third data byte
                                         std::byte (0xf7) };
-            std::vector<std::vector<std::byte>> vectors;
+            std::vector<std::vector<uint8_t>> vectors;
             extractor.push (message, [&] (auto, auto bytes) { vectors.emplace_back (bytes.begin(), bytes.end()); });
 
             expect (vectors == std::vector { std::vector { std::byte (0xf0), std::byte (0x50) },
@@ -121,7 +121,7 @@ public:
                                         std::byte (0x02),
                                         std::byte (0x03) };
 
-            std::vector<std::vector<std::byte>> vectors;
+            std::vector<std::vector<uint8_t>> vectors;
             extractor.push (message, [&] (auto, auto bytes) { vectors.emplace_back (bytes.begin(), bytes.end()); });
 
             expect (vectors == std::vector { std::vector { std::byte (0xf0), std::byte (0x00), std::byte (0x01) },
@@ -139,7 +139,7 @@ public:
                                         std::byte (0x00),
                                         std::byte (0x00) };
 
-            std::vector<std::vector<std::byte>> vectors;
+            std::vector<std::vector<uint8_t>> vectors;
             extractor.push (message, [&] (auto, auto bytes) { vectors.emplace_back (bytes.begin(), bytes.end()); });
 
             expect (vectors == std::vector { std::vector { std::byte (0xf0), std::byte (0x10), std::byte (0x20), std::byte (0x30) },
@@ -156,7 +156,7 @@ public:
                                         std::byte (0x40),
                                         std::byte (0x50) };
 
-            std::vector<std::vector<std::byte>> vectors;
+            std::vector<std::vector<uint8_t>> vectors;
             const auto callback = [&] (auto status, auto bytes)
             {
                 expect (status == SysexExtractorCallbackKind::notSysex);
@@ -181,7 +181,7 @@ public:
                                         std::byte (0xfe),   // active sensing
                                         std::byte (0x50) }; // third pressure message
 
-            std::vector<std::vector<std::byte>> vectors;
+            std::vector<std::vector<uint8_t>> vectors;
             extractor.push (message, [&] (auto, auto bytes)
             {
                 vectors.emplace_back (bytes.begin(), bytes.end());
@@ -210,7 +210,7 @@ public:
                                         std::byte (0x00),   // sysex resets running status
                                         std::byte (0x10), };
 
-            std::vector<std::vector<std::byte>> vectors;
+            std::vector<std::vector<uint8_t>> vectors;
             extractor.push (message, [&] (auto, auto bytes)
             {
                 vectors.emplace_back (bytes.begin(), bytes.end());
