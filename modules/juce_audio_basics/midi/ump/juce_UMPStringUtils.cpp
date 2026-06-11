@@ -87,7 +87,7 @@ static String getData64MessageDescription (const PacketX2& p)
 
     String byteString;
 
-    std::for_each (bytes.data.data(), bytes.data.data() + bytes.size, [&] (std::byte byte)
+    std::for_each (bytes.data.data(), bytes.data.data() + bytes.size, [&] (uint8_t byte)
     {
         byteString << String::toHexString ((uint8_t) byte);
     });

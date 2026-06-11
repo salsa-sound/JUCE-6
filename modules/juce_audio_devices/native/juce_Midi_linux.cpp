@@ -121,7 +121,7 @@ struct AlsaMidiHelpers
             return ((double) startTimeMillis + elapsedMillis) * 0.001;
         }
 
-        void processEvent (Span<std::byte> buffer, snd_midi_event_t* midiParser)
+        void processEvent (Span<uint8_t> buffer, snd_midi_event_t* midiParser)
         {
             constexpr int systemEvents[]
             {
@@ -270,20 +270,20 @@ struct AlsaMidiHelpers
     }
 
     template <size_t N>
-    static constexpr std::array<std::byte, N> makeBytesLittleEndian (unsigned int b)
+    static constexpr std::array<uint8_t, N> makeBytesLittleEndian (unsigned int b)
     {
-        std::array<std::byte, N> result;
+        std::array<uint8_t, N> result;
 
         for (size_t i = 0; i != N; ++i)
         {
-            result[i] = std::byte { (uint8_t) b };
+            result[i] = uint8_t { (uint8_t) b };
             b >>= 8;
         }
 
         return result;
     }
 
-    static constexpr unsigned int fromBytesLittleEndian (Span<const std::byte> bytes)
+    static constexpr unsigned int fromBytesLittleEndian (Span<const uint8_t> bytes)
     {
         unsigned int result{};
 
@@ -315,8 +315,8 @@ struct AlsaMidiHelpers
             const auto model = snd_ump_endpoint_info_get_model_id (endpoint);
             const auto revisionPtr = snd_ump_endpoint_info_get_sw_revision (endpoint);
 
-            std::array<std::byte, 4> revision;
-            std::transform (revisionPtr, revisionPtr + 4, revision.data(), [] (auto x) { return std::byte { x }; });
+            std::array<uint8_t, 4> revision;
+            std::transform (revisionPtr, revisionPtr + 4, revision.data(), [] (auto x) { return uint8_t { x }; });
 
             const ump::DeviceInfo deviceInfo { makeBytesLittleEndian<3> (manufacturer),
                                                makeBytesLittleEndian<2> (family),

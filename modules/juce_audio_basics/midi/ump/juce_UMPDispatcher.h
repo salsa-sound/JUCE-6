@@ -111,7 +111,7 @@ public:
         @param callback     a callback which will be passed a View pointing to each new packet as it becomes ready.
     */
     template <typename PacketCallbackFunction>
-    void dispatch (Span<const std::byte> bytes,
+    void dispatch (Span<const uint8_t> bytes,
                    double timestamp,
                    PacketCallbackFunction&& callback)
     {

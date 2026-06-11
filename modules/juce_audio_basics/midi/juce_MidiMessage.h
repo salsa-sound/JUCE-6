@@ -231,9 +231,9 @@ public:
     int getSysExDataSize() const noexcept;
 
     /** Returns a span that bounds the sysex body bytes contained in this message. */
-    Span<const std::byte> getSysExDataSpan() const noexcept
+    Span<const uint8_t> getSysExDataSpan() const noexcept
     {
-        return { reinterpret_cast<const std::byte*> (getSysExData()),
+        return { reinterpret_cast<const uint8_t*> (getSysExData()),
                  (size_t) getSysExDataSize() };
     }
 
@@ -877,7 +877,7 @@ public:
     /** Creates a system-exclusive message.
         The data passed in is wrapped with header and tail bytes of 0xf0 and 0xf7.
     */
-    static MidiMessage createSysExMessage (Span<const std::byte> data);
+    static MidiMessage createSysExMessage (Span<const uint8_t> data);
 
     //==============================================================================
     /** @cond */
@@ -987,12 +987,12 @@ public:
     static uint16 pitchbendToPitchwheelPos (float pitchbendInSemitones,
                                             float pitchbendRangeInSemitones) noexcept;
 
-    Span<const std::byte> asSpan() const&
+    Span<const uint8_t> asSpan() const&
     {
-        return { reinterpret_cast<const std::byte*> (getRawData()), (size_t) getRawDataSize() };
+        return { reinterpret_cast<const uint8_t*> (getRawData()), (size_t) getRawDataSize() };
     }
 
-    Span<const std::byte> asSpan() const&& = delete;
+    Span<const uint8_t> asSpan() const&& = delete;
 
 private:
     //==============================================================================

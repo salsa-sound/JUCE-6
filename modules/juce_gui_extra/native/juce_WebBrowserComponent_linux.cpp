@@ -477,7 +477,7 @@ public:
     {
         virtual ~Responder() = default;
 
-        virtual void handleCommand (const String& cmd, const var& param, Span<const std::byte> rawData) = 0;
+        virtual void handleCommand (const String& cmd, const var& param, Span<const uint8_t> rawData) = 0;
         virtual void receiverHadError() = 0;
     };
 
@@ -548,7 +548,7 @@ public:
     static void sendCommand (int outChannel,
                              const String& cmd,
                              const var& params,
-                             Span<const std::byte> binaryPayload = {})
+                             Span<const uint8_t> binaryPayload = {})
     {
         DynamicObject::Ptr obj = new DynamicObject;
 
@@ -635,7 +635,7 @@ private:
 
         responder->handleCommand (cmd,
                                   params,
-                                  { reinterpret_cast<const std::byte*> (buffer.getData() + lengthsBuffer.getJsonLength()),
+                                  { reinterpret_cast<const uint8_t*> (buffer.getData() + lengthsBuffer.getJsonLength()),
                                     lengthsBuffer.getRawLength() });
     }
 
@@ -980,7 +980,7 @@ public:
                                                                            this);
     }
 
-    void handleResourceRequestedResponse (const var& params, Span<const std::byte> rawData)
+    void handleResourceRequestedResponse (const var& params, Span<const uint8_t> rawData)
     {
         auto& wk = *WebKitSymbols::getInstance();
 
@@ -1004,7 +1004,7 @@ public:
         {
             if (response->resource->data.empty() && ! rawData.empty())
             {
-                response->resource->data = std::vector<std::byte> (rawData.begin(), rawData.end());
+                response->resource->data = std::vector<uint8_t> (rawData.begin(), rawData.end());
             }
             else
             {
@@ -1044,7 +1044,7 @@ public:
     }
 
     //==============================================================================
-    void handleCommand (const String& cmd, const var& params, Span<const std::byte> rawData) override
+    void handleCommand (const String& cmd, const var& params, Span<const uint8_t> rawData) override
     {
         auto& wk = *WebKitSymbols::getInstance();
 
@@ -1438,7 +1438,7 @@ public:
         }
 
         auto response = browser.impl->handleResourceRequest (params->path);
-        std::vector<std::byte> rawData;
+        std::vector<uint8_t> rawData;
 
         if (response.has_value())
         {
@@ -1751,7 +1751,7 @@ private:
             goToURL (String ("data:text/plain,") + error, nullptr, nullptr);
     }
 
-    void handleCommand (const String& cmd, const var& params, Span<const std::byte>) override
+    void handleCommand (const String& cmd, const var& params, Span<const uint8_t>) override
     {
         MessageManager::callAsync ([liveness = std::weak_ptr (livenessProbe), this, cmd, params]
                                    {

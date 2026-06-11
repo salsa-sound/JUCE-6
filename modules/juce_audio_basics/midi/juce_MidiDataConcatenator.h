@@ -53,7 +53,7 @@ public:
     }
 
     template <typename Callback>
-    void push (Span<const std::byte> bytes, Callback&& callback)
+    void push (Span<const uint8_t> bytes, Callback&& callback)
     {
         for (const auto pair : enumerate (bytes))
         {
@@ -64,14 +64,14 @@ public:
             {
                 if (auto* inSysex = std::get_if<InSysex> (&state))
                 {
-                    if (byte == std::byte { 0xf0 })
+                    if (byte == uint8_t { 0xf0 })
                     {
                         callback (SysexExtractorCallbackKind::lastSysex,
                                   Span { bytes.data() + index - inSysex->numBytes, inSysex->numBytes });
                         return InSysex { 1 };
                     }
 
-                    if (byte == std::byte { 0xf7 })
+                    if (byte == uint8_t { 0xf7 })
                     {
                         callback (SysexExtractorCallbackKind::lastSysex,
                                   Span { bytes.data() + index - inSysex->numBytes, inSysex->numBytes + 1 });
@@ -99,7 +99,7 @@ public:
 
                 if (auto* runningStatus = std::get_if<RunningStatus> (&state))
                 {
-                    if (byte == std::byte { 0xf0 })
+                    if (byte == uint8_t { 0xf0 })
                         return InSysex { 1 };
 
                     const auto nextRunningStatus = std::invoke ([&]
@@ -147,9 +147,9 @@ public:
     }
 
 private:
-    static bool isRealtimeMessage (std::byte byte)  { return std::byte (0xf8) <= byte && byte <= std::byte (0xfe); }
-    static bool isStatusByte      (std::byte byte)  { return std::byte (0x80) <= byte; }
-    static bool isInitialByte     (std::byte byte)  { return isStatusByte (byte) && byte != std::byte (0xf7); }
+    static bool isRealtimeMessage (uint8_t byte)  { return uint8_t (0xf8) <= byte && byte <= uint8_t (0xfe); }
+    static bool isStatusByte      (uint8_t byte)  { return uint8_t (0x80) <= byte; }
+    static bool isInitialByte     (uint8_t byte)  { return isStatusByte (byte) && byte != uint8_t (0xf7); }
 
     struct InSysex
     {
@@ -161,13 +161,13 @@ private:
         // These constructors are required to work around a bug in GCC 7
         RunningStatus() {}
 
-        RunningStatus (uint8_t sizeIn, std::array<std::byte, 3> dataIn)
+        RunningStatus (uint8_t sizeIn, std::array<uint8_t, 3> dataIn)
             : size (sizeIn), data (dataIn) {}
 
         uint8_t size{};
-        std::array<std::byte, 3> data{};
+        std::array<uint8_t, 3> data{};
 
-        Span<const std::byte> getCompleteMessage() const
+        Span<const uint8_t> getCompleteMessage() const
         {
             if (size == 0)
                 return {};
@@ -176,13 +176,13 @@ private:
             return Span { data.data(), size == expectedSize ? size : (size_t) 0 };
         }
 
-        void appendByte (std::byte x)
+        void appendByte (uint8_t x)
         {
             jassert (size < data.size());
             data[size++] = x;
         }
 
-        RunningStatus withAppendedByte (std::byte x) const
+        RunningStatus withAppendedByte (uint8_t x) const
         {
             auto result = *this;
             result.appendByte (x);
@@ -223,12 +223,12 @@ public:
     }
 
     template <typename UserDataType, typename CallbackType>
-    void pushMidiData (Span<const std::byte> bytes,
+    void pushMidiData (Span<const uint8_t> bytes,
                        double time,
                        UserDataType* input,
                        CallbackType& callback)
     {
-        extractor.push (bytes, [&] (SysexExtractorCallbackKind kind, Span<const std::byte> bytesThisTime)
+        extractor.push (bytes, [&] (SysexExtractorCallbackKind kind, Span<const uint8_t> bytesThisTime)
         {
             switch (kind)
             {
@@ -288,7 +288,7 @@ public:
                        UserDataType* input,
                        CallbackType& callback)
     {
-        pushMidiData ({ static_cast<const std::byte*> (inputData), (size_t) numBytes }, time, input, callback);
+        pushMidiData ({ static_cast<const uint8_t*> (inputData), (size_t) numBytes }, time, input, callback);
     }
 
 private:

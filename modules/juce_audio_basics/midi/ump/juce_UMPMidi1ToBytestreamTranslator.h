@@ -69,7 +69,7 @@ public:
         if (sysexInProgress && shouldPacketTerminateSysExEarly (firstWord))
         {
             // unexpected end of last sysex
-            callback (SysexExtractorCallbackKind::lastSysex, Span<const std::byte>());
+            callback (SysexExtractorCallbackKind::lastSysex, Span<const uint8_t>());
             sysexInProgress = false;
         }
 
@@ -82,7 +82,7 @@ public:
                 {
                     const auto converted = fromUmp (PacketX1 { firstWord }, time);
                     callback (SysexExtractorCallbackKind::notSysex,
-                              Span (unalignedPointerCast<const std::byte*> (converted.getRawData()),
+                              Span (unalignedPointerCast<const uint8_t*> (converted.getRawData()),
                                     (size_t) converted.getRawDataSize()));
                 }
 
@@ -119,9 +119,9 @@ public:
         const auto word = m.front();
         jassert (Utils::getNumWordsForMessageType (word) == 1);
 
-        const std::array<std::byte, 3> bytes { { std::byte ((word >> 0x10) & 0xff),
-                                                 std::byte ((word >> 0x08) & 0xff),
-                                                 std::byte ((word >> 0x00) & 0xff) } };
+        const std::array<uint8_t, 3> bytes { { uint8_t ((word >> 0x10) & 0xff),
+                                                 uint8_t ((word >> 0x08) & 0xff),
+                                                 uint8_t ((word >> 0x00) & 0xff) } };
         const auto numBytes = MidiMessage::getMessageLengthFromFirstByte ((uint8_t) bytes.front());
         return MidiMessage (bytes.data(), numBytes, time);
     }
@@ -130,11 +130,11 @@ private:
     template <typename MessageCallback>
     void processSysEx (const PacketX2& packet, MessageCallback&& callback)
     {
-        const std::array<std::byte, 1> initial { std::byte { 0xf0 } }, final { std::byte { 0xf7 } };
-        std::array<std::byte, 8> storage{};
+        const std::array<uint8_t, 1> initial { uint8_t { 0xf0 } }, final { uint8_t { 0xf7 } };
+        std::array<uint8_t, 8> storage{};
         size_t validBytes = 0;
 
-        const auto pushBytes = [&] (const Span<const std::byte> b)
+        const auto pushBytes = [&] (const Span<const uint8_t> b)
         {
             std::copy (b.begin(), b.end(), storage.data() + validBytes);
             validBytes += b.size();
@@ -143,7 +143,7 @@ private:
         const auto pushPacket = [&] (const PacketX2& p)
         {
             const auto newBytes = SysEx7::getDataBytes (p);
-            pushBytes (Span<const std::byte> (newBytes.data.data(), newBytes.size));
+            pushBytes (Span<const uint8_t> (newBytes.data.data(), newBytes.size));
         };
 
         const auto kind = getSysEx7Kind (packet[0]);
@@ -152,7 +152,7 @@ private:
             || (! sysexInProgress && (kind == SysEx7::Kind::continuation || kind == SysEx7::Kind::end)))
         {
             // Malformed SysEx, drop progress and return
-            callback (SysexExtractorCallbackKind::lastSysex, Span<const std::byte>());
+            callback (SysexExtractorCallbackKind::lastSysex, Span<const uint8_t>());
             sysexInProgress = false;
             return;
         }
@@ -260,7 +260,7 @@ public:
     template <typename MessageCallback>
     void dispatch (const View& packet, double time, MessageCallback&& callback)
     {
-        extractor.dispatch (packet, time, [&] (SysexExtractorCallbackKind kind, Span<const std::byte> bytes)
+        extractor.dispatch (packet, time, [&] (SysexExtractorCallbackKind kind, Span<const uint8_t> bytes)
         {
             switch (kind)
             {

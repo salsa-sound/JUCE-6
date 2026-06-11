@@ -44,7 +44,7 @@ namespace juce::universal_midi_packets
 struct Utils
 {
     /** Joins 4 bytes into a single 32-bit word. */
-    static constexpr uint32_t bytesToWord (std::byte a, std::byte b, std::byte c, std::byte d)
+    static constexpr uint32_t bytesToWord (uint8_t a, uint8_t b, uint8_t c, uint8_t d)
     {
         return uint32_t (a) << 0x18
              | uint32_t (b) << 0x10
@@ -139,7 +139,7 @@ struct Utils
     }
 
     static constexpr MessageKind getMessageType (uint32_t w) noexcept { return MessageKind { U4<0>::get (w) }; }
-    static constexpr std::byte   getStatus      (uint32_t w) noexcept { return std::byte { U4<2>::get (w) }; }
+    static constexpr uint8_t   getStatus      (uint32_t w) noexcept { return uint8_t { U4<2>::get (w) }; }
     static constexpr uint8_t     getChannel     (uint32_t w) noexcept { return U4<3>::get (w); }
     static constexpr uint8_t     getGroup       (uint32_t w) noexcept { return U4<1>::get (w); }
 };

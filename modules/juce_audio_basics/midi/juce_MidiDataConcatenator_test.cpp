@@ -58,12 +58,12 @@ public:
         {
             BytestreamSysexExtractor extractor;
             bool called = false;
-            const std::byte message[] { std::byte (0xf0), std::byte (0xf7) };
+            const uint8_t message[] { uint8_t (0xf0), uint8_t (0xf7) };
             extractor.push (message, [&] (auto status, auto bytes)
             {
                 called = true;
                 expect (status == SysexExtractorCallbackKind::lastSysex);
-                expect (bytes.size() == 2 && bytes[0] == std::byte (0xf0) && bytes[1] == std::byte (0xf7));
+                expect (bytes.size() == 2 && bytes[0] == uint8_t (0xf0) && bytes[1] == uint8_t (0xf7));
             });
 
             expect (called);
@@ -73,18 +73,18 @@ public:
         {
             BytestreamSysexExtractor extractor;
             int numCalls = 0;
-            const std::byte message[] { std::byte (0xf0) };
+            const uint8_t message[] { uint8_t (0xf0) };
             extractor.push (message, [&] (auto status, auto bytes)
             {
                 ++numCalls;
                 expect (status == SysexExtractorCallbackKind::ongoingSysex);
-                expect (bytes.size() == 1 && bytes[0] == std::byte (0xf0));
+                expect (bytes.size() == 1 && bytes[0] == uint8_t (0xf0));
             });
 
             expect (numCalls == 1);
 
             // Sending a subsequent empty span should report an ongoing message
-            extractor.push (Span<const std::byte>{}, [&] (auto status, auto bytes)
+            extractor.push (Span<const uint8_t>{}, [&] (auto status, auto bytes)
             {
                 ++numCalls;
                 expect (status == SysexExtractorCallbackKind::ongoingSysex);
@@ -97,64 +97,64 @@ public:
         beginTest ("Sending sysex interspersed with realtime messages filters out the realtime messages");
         {
             BytestreamSysexExtractor extractor;
-            const std::byte message[] { std::byte (0xf0),
-                                        std::byte (0x50), // first data byte
-                                        std::byte (0xfe), // active sensing
-                                        std::byte (0x60), // second data byte
-                                        std::byte (0x70), // third data byte
-                                        std::byte (0xf7) };
+            const uint8_t message[] { uint8_t (0xf0),
+                                        uint8_t (0x50), // first data byte
+                                        uint8_t (0xfe), // active sensing
+                                        uint8_t (0x60), // second data byte
+                                        uint8_t (0x70), // third data byte
+                                        uint8_t (0xf7) };
             std::vector<std::vector<uint8_t>> vectors;
             extractor.push (message, [&] (auto, auto bytes) { vectors.emplace_back (bytes.begin(), bytes.end()); });
 
-            expect (vectors == std::vector { std::vector { std::byte (0xf0), std::byte (0x50) },
-                                             std::vector { std::byte (0xfe) },
-                                             std::vector { std::byte (0x60), std::byte (0x70), std::byte (0xf7) } });
+            expect (vectors == std::vector { std::vector { uint8_t (0xf0), uint8_t (0x50) },
+                                             std::vector { uint8_t (0xfe) },
+                                             std::vector { uint8_t (0x60), uint8_t (0x70), uint8_t (0xf7) } });
         }
 
         beginTest ("Sending a second f0 byte during an ongoing sysex terminates the previous sysex");
         {
             BytestreamSysexExtractor extractor;
-            const std::byte message[] { std::byte (0xf0), // start of first sysex
-                                        std::byte (0x00),
-                                        std::byte (0x01),
-                                        std::byte (0xf0), // start of second sysex
-                                        std::byte (0x02),
-                                        std::byte (0x03) };
+            const uint8_t message[] { uint8_t (0xf0), // start of first sysex
+                                        uint8_t (0x00),
+                                        uint8_t (0x01),
+                                        uint8_t (0xf0), // start of second sysex
+                                        uint8_t (0x02),
+                                        uint8_t (0x03) };
 
             std::vector<std::vector<uint8_t>> vectors;
             extractor.push (message, [&] (auto, auto bytes) { vectors.emplace_back (bytes.begin(), bytes.end()); });
 
-            expect (vectors == std::vector { std::vector { std::byte (0xf0), std::byte (0x00), std::byte (0x01) },
-                                             std::vector { std::byte (0xf0), std::byte (0x02), std::byte (0x03) } });
+            expect (vectors == std::vector { std::vector { uint8_t (0xf0), uint8_t (0x00), uint8_t (0x01) },
+                                             std::vector { uint8_t (0xf0), uint8_t (0x02), uint8_t (0x03) } });
         }
 
         beginTest ("Status bytes truncate ongoing sysex");
         {
             BytestreamSysexExtractor extractor;
-            const std::byte message[] { std::byte (0xf0), // start of first sysex
-                                        std::byte (0x10),
-                                        std::byte (0x20),
-                                        std::byte (0x30),
-                                        std::byte (0x80), // status byte
-                                        std::byte (0x00),
-                                        std::byte (0x00) };
+            const uint8_t message[] { uint8_t (0xf0), // start of first sysex
+                                        uint8_t (0x10),
+                                        uint8_t (0x20),
+                                        uint8_t (0x30),
+                                        uint8_t (0x80), // status byte
+                                        uint8_t (0x00),
+                                        uint8_t (0x00) };
 
             std::vector<std::vector<uint8_t>> vectors;
             extractor.push (message, [&] (auto, auto bytes) { vectors.emplace_back (bytes.begin(), bytes.end()); });
 
-            expect (vectors == std::vector { std::vector { std::byte (0xf0), std::byte (0x10), std::byte (0x20), std::byte (0x30) },
-                                             std::vector { std::byte (0x80), std::byte (0x00), std::byte (0x00) } });
+            expect (vectors == std::vector { std::vector { uint8_t (0xf0), uint8_t (0x10), uint8_t (0x20), uint8_t (0x30) },
+                                             std::vector { uint8_t (0x80), uint8_t (0x00), uint8_t (0x00) } });
         }
 
         beginTest ("Running status is preserved between calls");
         {
             BytestreamSysexExtractor extractor;
-            const std::byte message[] { std::byte (0x90), // note on
-                                        std::byte (0x10),
-                                        std::byte (0x20),
-                                        std::byte (0x30),
-                                        std::byte (0x40),
-                                        std::byte (0x50) };
+            const uint8_t message[] { uint8_t (0x90), // note on
+                                        uint8_t (0x10),
+                                        uint8_t (0x20),
+                                        uint8_t (0x30),
+                                        uint8_t (0x40),
+                                        uint8_t (0x50) };
 
             std::vector<std::vector<uint8_t>> vectors;
             const auto callback = [&] (auto status, auto bytes)
@@ -163,23 +163,23 @@ public:
                 vectors.emplace_back (bytes.begin(), bytes.end());
             };
             extractor.push (message, callback);
-            extractor.push (std::array { std::byte (0x60) }, callback);
+            extractor.push (std::array { uint8_t (0x60) }, callback);
 
-            expect (vectors == std::vector { std::vector { std::byte (0x90), std::byte (0x10), std::byte (0x20) },
-                                             std::vector { std::byte (0x90), std::byte (0x30), std::byte (0x40) },
-                                             std::vector { std::byte (0x90), std::byte (0x50), std::byte (0x60) } });
+            expect (vectors == std::vector { std::vector { uint8_t (0x90), uint8_t (0x10), uint8_t (0x20) },
+                                             std::vector { uint8_t (0x90), uint8_t (0x30), uint8_t (0x40) },
+                                             std::vector { uint8_t (0x90), uint8_t (0x50), uint8_t (0x60) } });
         }
 
         beginTest ("Realtime messages can intersperse bytes of non-sysex messages");
         {
             BytestreamSysexExtractor extractor;
-            const std::byte message[] { std::byte (0xd0),   // channel pressure
-                                        std::byte (0xfe),   // active sensing
-                                        std::byte (0x70),   // pressure cont.
-                                        std::byte (0xfe),   // active sensing
-                                        std::byte (0x60),   // second pressure message
-                                        std::byte (0xfe),   // active sensing
-                                        std::byte (0x50) }; // third pressure message
+            const uint8_t message[] { uint8_t (0xd0),   // channel pressure
+                                        uint8_t (0xfe),   // active sensing
+                                        uint8_t (0x70),   // pressure cont.
+                                        uint8_t (0xfe),   // active sensing
+                                        uint8_t (0x60),   // second pressure message
+                                        uint8_t (0xfe),   // active sensing
+                                        uint8_t (0x50) }; // third pressure message
 
             std::vector<std::vector<uint8_t>> vectors;
             extractor.push (message, [&] (auto, auto bytes)
@@ -187,28 +187,28 @@ public:
                 vectors.emplace_back (bytes.begin(), bytes.end());
             });
 
-            expect (vectors == std::vector { std::vector { std::byte (0xfe) },
-                                             std::vector { std::byte (0xd0), std::byte (0x70) },
-                                             std::vector { std::byte (0xfe) },
-                                             std::vector { std::byte (0xd0), std::byte (0x60) },
-                                             std::vector { std::byte (0xfe) },
-                                             std::vector { std::byte (0xd0), std::byte (0x50) } });
+            expect (vectors == std::vector { std::vector { uint8_t (0xfe) },
+                                             std::vector { uint8_t (0xd0), uint8_t (0x70) },
+                                             std::vector { uint8_t (0xfe) },
+                                             std::vector { uint8_t (0xd0), uint8_t (0x60) },
+                                             std::vector { uint8_t (0xfe) },
+                                             std::vector { uint8_t (0xd0), uint8_t (0x50) } });
         }
 
         beginTest ("Non-status bytes with no associated running status are ignored");
         {
             BytestreamSysexExtractor extractor;
-            const std::byte message[] { std::byte (0x10),
-                                        std::byte (0x2e),
-                                        std::byte (0x30),
-                                        std::byte (0x4e),
-                                        std::byte (0x80),   // note off
-                                        std::byte (0x0e),
-                                        std::byte (0x00),
-                                        std::byte (0xf0),   // sysex
-                                        std::byte (0xf7),   // end sysex
-                                        std::byte (0x00),   // sysex resets running status
-                                        std::byte (0x10), };
+            const uint8_t message[] { uint8_t (0x10),
+                                        uint8_t (0x2e),
+                                        uint8_t (0x30),
+                                        uint8_t (0x4e),
+                                        uint8_t (0x80),   // note off
+                                        uint8_t (0x0e),
+                                        uint8_t (0x00),
+                                        uint8_t (0xf0),   // sysex
+                                        uint8_t (0xf7),   // end sysex
+                                        uint8_t (0x00),   // sysex resets running status
+                                        uint8_t (0x10), };
 
             std::vector<std::vector<uint8_t>> vectors;
             extractor.push (message, [&] (auto, auto bytes)
@@ -216,8 +216,8 @@ public:
                 vectors.emplace_back (bytes.begin(), bytes.end());
             });
 
-            expect (vectors == std::vector { std::vector { std::byte (0x80), std::byte (0x0e), std::byte (0x00) },
-                                             std::vector { std::byte (0xf0), std::byte (0xf7) } });
+            expect (vectors == std::vector { std::vector { uint8_t (0x80), uint8_t (0x0e), uint8_t (0x00) },
+                                             std::vector { uint8_t (0xf0), uint8_t (0xf7) } });
         }
     }
 };

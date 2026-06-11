@@ -38,13 +38,13 @@ namespace juce::universal_midi_packets
 PacketX2 Midi1ToMidi2DefaultTranslator::processNoteOnOrOff (const HelperValues helpers)
 {
     const auto velocity = helpers.byte2;
-    const auto needsConversion = (helpers.byte0 & std::byte { 0xf0 }) == std::byte { 0x90 } && velocity == std::byte { 0 };
-    const auto firstByte = needsConversion ? (std::byte { 0x80 } | (helpers.byte0 & std::byte { 0xf }))
+    const auto needsConversion = (helpers.byte0 & uint8_t { 0xf0 }) == uint8_t { 0x90 } && velocity == uint8_t { 0 };
+    const auto firstByte = needsConversion ? (uint8_t { 0x80 } | (helpers.byte0 & uint8_t { 0xf }))
                                            : helpers.byte0;
 
     return PacketX2
     {
-        Utils::bytesToWord (helpers.typeAndGroup, firstByte, helpers.byte1, std::byte { 0 }),
+        Utils::bytesToWord (helpers.typeAndGroup, firstByte, helpers.byte1, uint8_t { 0 }),
         (uint32_t) (Conversion::scaleTo16 (uint8_t (velocity)) << 0x10)
     };
 }
@@ -53,7 +53,7 @@ PacketX2 Midi1ToMidi2DefaultTranslator::processPolyPressure (const HelperValues 
 {
     return PacketX2
     {
-        Utils::bytesToWord (helpers.typeAndGroup, helpers.byte0, helpers.byte1, std::byte { 0 }),
+        Utils::bytesToWord (helpers.typeAndGroup, helpers.byte0, helpers.byte1, uint8_t { 0 }),
         Conversion::scaleTo32 (uint8_t (helpers.byte2))
     };
 }
@@ -80,8 +80,8 @@ bool Midi1ToMidi2DefaultTranslator::processControlChange (const HelperValues hel
         return false;
     }();
 
-    const auto group   = (uint8_t) (helpers.typeAndGroup & std::byte { 0xf });
-    const auto channel = (uint8_t) (statusAndChannel & std::byte { 0xf });
+    const auto group   = (uint8_t) (helpers.typeAndGroup & uint8_t { 0xf });
+    const auto channel = (uint8_t) (statusAndChannel & uint8_t { 0xf });
     const auto byte    = helpers.byte2;
 
     if (shouldAccumulate)
@@ -96,13 +96,13 @@ bool Midi1ToMidi2DefaultTranslator::processControlChange (const HelperValues hel
             const auto msb    = bytes[2];
             const auto lsb    = bytes[3];
 
-            const auto value = uint16_t ((uint16_t (msb & std::byte { 0x7f }) << 7) | uint16_t (lsb & std::byte { 0x7f }));
+            const auto value = uint16_t ((uint16_t (msb & uint8_t { 0x7f }) << 7) | uint16_t (lsb & uint8_t { 0x7f }));
 
-            const auto newStatus = accumulator.getKind() == PnKind::nrpn ? std::byte { 0x3 } : std::byte { 0x2 };
+            const auto newStatus = accumulator.getKind() == PnKind::nrpn ? uint8_t { 0x3 } : uint8_t { 0x2 };
 
             packet = PacketX2
             {
-                Utils::bytesToWord (helpers.typeAndGroup, std::byte ((newStatus << 0x4) | std::byte { channel }), bank, index),
+                Utils::bytesToWord (helpers.typeAndGroup, uint8_t ((newStatus << 0x4) | uint8_t { channel }), bank, index),
                 Conversion::scaleTo32 (value)
             };
             return true;
@@ -125,7 +125,7 @@ bool Midi1ToMidi2DefaultTranslator::processControlChange (const HelperValues hel
 
     packet = PacketX2
     {
-        Utils::bytesToWord (helpers.typeAndGroup, statusAndChannel, std::byte { cc }, std::byte { 0 }),
+        Utils::bytesToWord (helpers.typeAndGroup, statusAndChannel, uint8_t { cc }, uint8_t { 0 }),
         Conversion::scaleTo32 (uint8_t (helpers.byte2))
     };
     return true;
@@ -133,8 +133,8 @@ bool Midi1ToMidi2DefaultTranslator::processControlChange (const HelperValues hel
 
 PacketX2 Midi1ToMidi2DefaultTranslator::processProgramChange (const HelperValues helpers) const
 {
-    const auto group   = (uint8_t) (helpers.typeAndGroup & std::byte { 0xf });
-    const auto channel = (uint8_t) (helpers.byte0 & std::byte { 0xf });
+    const auto group   = (uint8_t) (helpers.typeAndGroup & uint8_t { 0xf });
+    const auto channel = (uint8_t) (helpers.byte0 & uint8_t { 0xf });
     const auto bank    = groupBanks[group][channel];
     const auto valid   = bank.isValid();
 
@@ -142,12 +142,12 @@ PacketX2 Midi1ToMidi2DefaultTranslator::processProgramChange (const HelperValues
     {
         Utils::bytesToWord (helpers.typeAndGroup,
                             helpers.byte0,
-                            std::byte { 0 },
-                            valid ? std::byte { 1 } : std::byte { 0 }),
+                            uint8_t { 0 },
+                            valid ? uint8_t { 1 } : uint8_t { 0 }),
         Utils::bytesToWord (helpers.byte1,
-                            std::byte { 0 },
-                            valid ? std::byte { bank.getMsb() } : std::byte { 0 },
-                            valid ? std::byte { bank.getLsb() } : std::byte { 0 })
+                            uint8_t { 0 },
+                            valid ? uint8_t { bank.getMsb() } : uint8_t { 0 },
+                            valid ? uint8_t { bank.getLsb() } : uint8_t { 0 })
     };
 }
 
@@ -155,7 +155,7 @@ PacketX2 Midi1ToMidi2DefaultTranslator::processChannelPressure (const HelperValu
 {
     return PacketX2
     {
-        Utils::bytesToWord (helpers.typeAndGroup, helpers.byte0, std::byte { 0 }, std::byte { 0 }),
+        Utils::bytesToWord (helpers.typeAndGroup, helpers.byte0, uint8_t { 0 }, uint8_t { 0 }),
         Conversion::scaleTo32 (uint8_t (helpers.byte1))
     };
 }
@@ -168,12 +168,12 @@ PacketX2 Midi1ToMidi2DefaultTranslator::processPitchBend (const HelperValues hel
 
     return PacketX2
     {
-        Utils::bytesToWord (helpers.typeAndGroup, helpers.byte0, std::byte { 0 }, std::byte { 0 }),
+        Utils::bytesToWord (helpers.typeAndGroup, helpers.byte0, uint8_t { 0 }, uint8_t { 0 }),
         Conversion::scaleTo32 (value)
     };
 }
 
-bool Midi1ToMidi2DefaultTranslator::PnAccumulator::addByte (uint8_t cc, std::byte byte)
+bool Midi1ToMidi2DefaultTranslator::PnAccumulator::addByte (uint8_t cc, uint8_t byte)
 {
     const auto isStart = cc == 99 || cc == 101;
 

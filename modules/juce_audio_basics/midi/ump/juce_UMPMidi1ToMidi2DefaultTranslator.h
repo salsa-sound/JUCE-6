@@ -70,10 +70,10 @@ public:
 
         const HelperValues helperValues
         {
-            std::byte (0x40 | Utils::getGroup (firstWord)),
-            std::byte ((firstWord >> 0x10) & 0xff),
-            std::byte ((firstWord >> 0x08) & 0x7f),
-            std::byte ((firstWord >> 0x00) & 0x7f),
+            uint8_t (0x40 | Utils::getGroup (firstWord)),
+            uint8_t ((firstWord >> 0x10) & 0xff),
+            uint8_t ((firstWord >> 0x08) & 0x7f),
+            uint8_t ((firstWord >> 0x00) & 0x7f),
         };
 
         switch ((uint8_t) Utils::getStatus (firstWord))
@@ -137,10 +137,10 @@ private:
 
     struct HelperValues
     {
-        std::byte typeAndGroup;
-        std::byte byte0;
-        std::byte byte1;
-        std::byte byte2;
+        uint8_t typeAndGroup;
+        uint8_t byte0;
+        uint8_t byte1;
+        uint8_t byte2;
     };
 
     static PacketX2 processNoteOnOrOff (HelperValues helpers);
@@ -156,13 +156,13 @@ private:
     class PnAccumulator
     {
     public:
-        bool addByte (uint8_t cc, std::byte byte);
+        bool addByte (uint8_t cc, uint8_t byte);
 
-        const std::array<std::byte, 4>& getBytes() const noexcept { return bytes; }
+        const std::array<uint8_t, 4>& getBytes() const noexcept { return bytes; }
         PnKind getKind() const noexcept { return kind; }
 
     private:
-        std::array<std::byte, 4> bytes;
+        std::array<uint8_t, 4> bytes;
         uint8_t index = 0;
         PnKind kind = PnKind::nrpn;
     };
@@ -170,21 +170,21 @@ private:
     class Bank
     {
     public:
-        bool isValid() const noexcept { return (msb & std::byte { 0x80 }) == std::byte { 0 }; }
+        bool isValid() const noexcept { return (msb & uint8_t { 0x80 }) == uint8_t { 0 }; }
 
-        std::byte getMsb() const noexcept { return msb & std::byte (0x7f); }
-        std::byte getLsb() const noexcept { return lsb & std::byte (0x7f); }
+        uint8_t getMsb() const noexcept { return msb & uint8_t (0x7f); }
+        uint8_t getLsb() const noexcept { return lsb & uint8_t (0x7f); }
 
-        void setMsb (std::byte i) noexcept { msb = i & std::byte (0x7f); }
-        void setLsb (std::byte i) noexcept { msb &= std::byte (0x7f); lsb = i & std::byte (0x7f); }
+        void setMsb (uint8_t i) noexcept { msb = i & uint8_t (0x7f); }
+        void setLsb (uint8_t i) noexcept { msb &= uint8_t (0x7f); lsb = i & uint8_t (0x7f); }
 
     private:
         // We use the top bit to indicate whether this bank is valid.
         // After reading the spec, it's not clear how we should determine whether
         // there are valid values, so we'll just assume that the bank is valid
         // once either the lsb or msb have been written.
-        std::byte msb { 0x80 };
-        std::byte lsb { 0x00 };
+        uint8_t msb { 0x80 };
+        uint8_t lsb { 0x00 };
     };
 
     using ChannelAccumulators = std::array<PnAccumulator, 16>;

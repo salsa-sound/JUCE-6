@@ -60,12 +60,12 @@ struct MidiMessageMetadata
     */
     MidiMessage getMessage() const          { return MidiMessage (data, numBytes, samplePosition); }
 
-    Span<const std::byte> asSpan() const&
+    Span<const uint8_t> asSpan() const&
     {
-        return { reinterpret_cast<const std::byte*> (data), (size_t) numBytes };
+        return { reinterpret_cast<const uint8_t*> (data), (size_t) numBytes };
     }
 
-    Span<const std::byte> asSpan() const&& = delete;
+    Span<const uint8_t> asSpan() const&& = delete;
 
     /** Pointer to the first byte of a MIDI message. */
     const uint8* data = nullptr;

@@ -43,10 +43,10 @@ namespace juce::universal_midi_packets
 */
 struct DeviceInfo
 {
-    std::array<std::byte, 3> manufacturer;
-    std::array<std::byte, 2> family;        ///< LSB first
-    std::array<std::byte, 2> modelNumber;   ///< LSB first
-    std::array<std::byte, 4> revision;
+    std::array<uint8_t, 3> manufacturer;
+    std::array<uint8_t, 2> family;        ///< LSB first
+    std::array<uint8_t, 2> modelNumber;   ///< LSB first
+    std::array<uint8_t, 4> revision;
 
 private:
     auto tie() const;

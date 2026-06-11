@@ -707,7 +707,7 @@ MidiMessage MidiMessage::createSysExMessage (const void* sysexData, const int da
     return MidiMessage (m, dataSize + 2);
 }
 
-MidiMessage MidiMessage::createSysExMessage (Span<const std::byte> data)
+MidiMessage MidiMessage::createSysExMessage (Span<const uint8_t> data)
 {
     return createSysExMessage (data.data(), (int) data.size());
 }

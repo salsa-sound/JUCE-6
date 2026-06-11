@@ -99,10 +99,10 @@ public:
                 expect (packets.size() == 2);
 
                 const auto* sysEx = message.getSysExData();
-                expect (packets.data()[0] == Utils::bytesToWord (std::byte { 0x30 },
-                                                                 std::byte { 0x01 },
-                                                                 std::byte { sysEx[0] },
-                                                                 std::byte { 0 }));
+                expect (packets.data()[0] == Utils::bytesToWord (uint8_t { 0x30 },
+                                                                 uint8_t { 0x01 },
+                                                                 uint8_t { sysEx[0] },
+                                                                 uint8_t { 0 }));
                 expect (packets.data()[1] == 0x00000000);
             }
 
@@ -112,8 +112,8 @@ public:
                 expect (packets.size() == 2);
 
                 const auto* sysEx = message.getSysExData();
-                expect (packets.data()[0] == Utils::bytesToWord (std::byte { 0x30 },     std::byte { 0x06 },     std::byte { sysEx[0] }, std::byte { sysEx[1] }));
-                expect (packets.data()[1] == Utils::bytesToWord (std::byte { sysEx[2] }, std::byte { sysEx[3] }, std::byte { sysEx[4] }, std::byte { sysEx[5] }));
+                expect (packets.data()[0] == Utils::bytesToWord (uint8_t { 0x30 },     uint8_t { 0x06 },     uint8_t { sysEx[0] }, uint8_t { sysEx[1] }));
+                expect (packets.data()[1] == Utils::bytesToWord (uint8_t { sysEx[2] }, uint8_t { sysEx[3] }, uint8_t { sysEx[4] }, uint8_t { sysEx[5] }));
             }
 
             {
@@ -122,10 +122,10 @@ public:
                 expect (packets.size() == 4);
 
                 const auto* sysEx = message.getSysExData();
-                expect (packets.data()[0] == Utils::bytesToWord (std::byte { 0x30 },     std::byte { 0x16 },     std::byte { sysEx[0] },  std::byte { sysEx[1] }));
-                expect (packets.data()[1] == Utils::bytesToWord (std::byte { sysEx[2] }, std::byte { sysEx[3] }, std::byte { sysEx[4] },  std::byte { sysEx[5] }));
-                expect (packets.data()[2] == Utils::bytesToWord (std::byte { 0x30 },     std::byte { 0x36 },     std::byte { sysEx[6] },  std::byte { sysEx[7] }));
-                expect (packets.data()[3] == Utils::bytesToWord (std::byte { sysEx[8] }, std::byte { sysEx[9] }, std::byte { sysEx[10] }, std::byte { sysEx[11] }));
+                expect (packets.data()[0] == Utils::bytesToWord (uint8_t { 0x30 },     uint8_t { 0x16 },     uint8_t { sysEx[0] },  uint8_t { sysEx[1] }));
+                expect (packets.data()[1] == Utils::bytesToWord (uint8_t { sysEx[2] }, uint8_t { sysEx[3] }, uint8_t { sysEx[4] },  uint8_t { sysEx[5] }));
+                expect (packets.data()[2] == Utils::bytesToWord (uint8_t { 0x30 },     uint8_t { 0x36 },     uint8_t { sysEx[6] },  uint8_t { sysEx[7] }));
+                expect (packets.data()[3] == Utils::bytesToWord (uint8_t { sysEx[8] }, uint8_t { sysEx[9] }, uint8_t { sysEx[10] }, uint8_t { sysEx[11] }));
             }
 
             {
@@ -134,11 +134,11 @@ public:
                 expect (packets.size() == 6);
 
                 const auto* sysEx = message.getSysExData();
-                expect (packets.data()[0] == Utils::bytesToWord (std::byte { 0x30 },     std::byte { 0x16 },     std::byte { sysEx[0] },  std::byte { sysEx[1] }));
-                expect (packets.data()[1] == Utils::bytesToWord (std::byte { sysEx[2] }, std::byte { sysEx[3] }, std::byte { sysEx[4] },  std::byte { sysEx[5] }));
-                expect (packets.data()[2] == Utils::bytesToWord (std::byte { 0x30 },     std::byte { 0x26 },     std::byte { sysEx[6] },  std::byte { sysEx[7] }));
-                expect (packets.data()[3] == Utils::bytesToWord (std::byte { sysEx[8] }, std::byte { sysEx[9] }, std::byte { sysEx[10] }, std::byte { sysEx[11] }));
-                expect (packets.data()[4] == Utils::bytesToWord (std::byte { 0x30 },     std::byte { 0x31 },     std::byte { sysEx[12] }, std::byte { 0 }));
+                expect (packets.data()[0] == Utils::bytesToWord (uint8_t { 0x30 },     uint8_t { 0x16 },     uint8_t { sysEx[0] },  uint8_t { sysEx[1] }));
+                expect (packets.data()[1] == Utils::bytesToWord (uint8_t { sysEx[2] }, uint8_t { sysEx[3] }, uint8_t { sysEx[4] },  uint8_t { sysEx[5] }));
+                expect (packets.data()[2] == Utils::bytesToWord (uint8_t { 0x30 },     uint8_t { 0x26 },     uint8_t { sysEx[6] },  uint8_t { sysEx[7] }));
+                expect (packets.data()[3] == Utils::bytesToWord (uint8_t { sysEx[8] }, uint8_t { sysEx[9] }, uint8_t { sysEx[10] }, uint8_t { sysEx[11] }));
+                expect (packets.data()[4] == Utils::bytesToWord (uint8_t { 0x30 },     uint8_t { 0x31 },     uint8_t { sysEx[12] }, uint8_t { 0 }));
                 expect (packets.data()[5] == 0x00000000);
             }
         }
@@ -655,17 +655,17 @@ public:
 
         beginTest ("MIDI 2 -> 1 messages which don't convert");
         {
-            const std::byte opcodes[] { std::byte { 0x0 },
-                                        std::byte { 0x1 },
-                                        std::byte { 0x4 },
-                                        std::byte { 0x5 },
-                                        std::byte { 0x6 },
-                                        std::byte { 0xf } };
+            const uint8_t opcodes[] { uint8_t { 0x0 },
+                                        uint8_t { 0x1 },
+                                        uint8_t { 0x4 },
+                                        uint8_t { 0x5 },
+                                        uint8_t { 0x6 },
+                                        uint8_t { 0xf } };
 
             for (const auto opcode : opcodes)
             {
                 Packets midi2;
-                midi2.add (PacketX2 { Utils::bytesToWord (std::byte { 0x40 }, std::byte { opcode << 0x4 }, std::byte { 0 }, std::byte { 0 }), 0x0 });
+                midi2.add (PacketX2 { Utils::bytesToWord (uint8_t { 0x40 }, uint8_t { opcode << 0x4 }, uint8_t { 0 }, uint8_t { 0 }), 0x0 });
                 checkMidi2ToMidi1Conversion (midi2, {});
             }
         }
@@ -767,7 +767,7 @@ public:
             for (const auto cc : CCs)
             {
                 Packets midi1;
-                midi1.add (PacketX1 { Utils::bytesToWord (std::byte { 0x20 }, std::byte { 0xb0 }, std::byte { cc }, std::byte { 0x00 }) });
+                midi1.add (PacketX1 { Utils::bytesToWord (uint8_t { 0x20 }, uint8_t { 0xb0 }, uint8_t { cc }, uint8_t { 0x00 }) });
 
                 checkMidi1ToMidi2Conversion (midi1, {});
             }
@@ -923,10 +923,10 @@ private:
     {
         const auto status = random.nextInt (3);
 
-        return PacketX1 { Utils::bytesToWord (std::byte { 0 },
-                                              std::byte (status << 0x4),
-                                              std::byte (status == 0 ? 0 : random.nextInt (0x100)),
-                                              std::byte (status == 0 ? 0 : random.nextInt (0x100))) };
+        return PacketX1 { Utils::bytesToWord (uint8_t { 0 },
+                                              uint8_t (status << 0x4),
+                                              uint8_t (status == 0 ? 0 : random.nextInt (0x100)),
+                                              uint8_t (status == 0 ? 0 : random.nextInt (0x100))) };
     }
 
     PacketX1 createRandomRealtimeUMP (Random& random)
@@ -935,19 +935,19 @@ private:
         {
             switch (random.nextInt (6))
             {
-                case 0: return std::byte { 0xf8 };
-                case 1: return std::byte { 0xfa };
-                case 2: return std::byte { 0xfb };
-                case 3: return std::byte { 0xfc };
-                case 4: return std::byte { 0xfe };
-                case 5: return std::byte { 0xff };
+                case 0: return uint8_t { 0xf8 };
+                case 1: return uint8_t { 0xfa };
+                case 2: return uint8_t { 0xfb };
+                case 3: return uint8_t { 0xfc };
+                case 4: return uint8_t { 0xfe };
+                case 5: return uint8_t { 0xff };
             }
 
             jassertfalse;
-            return std::byte { 0x00 };
+            return uint8_t { 0x00 };
         }();
 
-        return PacketX1 { Utils::bytesToWord (std::byte { 0x10 }, status, std::byte { 0x00 }, std::byte { 0x00 }) };
+        return PacketX1 { Utils::bytesToWord (uint8_t { 0x10 }, status, uint8_t { 0x00 }, uint8_t { 0x00 }) };
     }
 
     template <typename Fn>

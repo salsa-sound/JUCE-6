@@ -42,7 +42,7 @@ namespace juce::universal_midi_packets
 */
 struct BytestreamMidiView
 {
-    constexpr BytestreamMidiView (Span<const std::byte> bytesIn, double timestampIn)
+    constexpr BytestreamMidiView (Span<const uint8_t> bytesIn, double timestampIn)
         : bytes (bytesIn), timestamp (timestampIn) {}
 
     /** Creates a view over the provided message.
@@ -70,7 +70,7 @@ struct BytestreamMidiView
                                      (int) timestamp };
     }
 
-    Span<const std::byte> bytes;
+    Span<const uint8_t> bytes;
     double timestamp = 0.0;
 };
 
@@ -91,9 +91,9 @@ struct Conversion
     {
         // If this is hit, non-7-bit data was supplied.
         // Maybe you forgot to trim the leading/trailing bytes that delimit a bytestream SysEx message.
-        jassert (std::all_of (msg.bytes.begin(), msg.bytes.end(), [] (std::byte b) { return (b & std::byte { 0x80 }) == std::byte{}; }));
+        jassert (std::all_of (msg.bytes.begin(), msg.bytes.end(), [] (uint8_t b) { return (b & uint8_t { 0x80 }) == uint8_t{}; }));
 
-        Factory::splitIntoPackets (msg.bytes, 6, [&] (SysEx7::Kind kind, Span<const std::byte> bytesThisTime)
+        Factory::splitIntoPackets (msg.bytes, 6, [&] (SysEx7::Kind kind, Span<const uint8_t> bytesThisTime)
         {
             const auto packet = Factory::Detail::makeSysEx (msg.group, kind, bytesThisTime);
             const uint32_t paddedPacket[] { packet[0], packet[1], 0, 0 };
@@ -119,7 +119,7 @@ struct Conversion
         const auto* data = groupBytes.bytes.data();
         const auto firstByte = data[0];
 
-        if (firstByte != std::byte { 0xf0 })
+        if (firstByte != uint8_t { 0xf0 })
         {
             const auto mask = [size]() -> uint32_t
             {
@@ -136,8 +136,8 @@ struct Conversion
                 return 0x00000000;
             }();
 
-            const auto extraByte = ((((firstByte & std::byte { 0xf0 }) == std::byte { 0xf0 }) ? std::byte { 0x1 } : std::byte { 0x2 }) << 0x4);
-            const std::byte group { (uint8_t) (groupBytes.group & 0xf) };
+            const auto extraByte = ((((firstByte & uint8_t { 0xf0 }) == uint8_t { 0xf0 }) ? uint8_t { 0x1 } : uint8_t { 0x2 }) << 0x4);
+            const uint8_t group { (uint8_t) (groupBytes.group & 0xf) };
             const uint32_t packet[] { mask & Utils::bytesToWord (extraByte | group, data[0], data[1], data[2]), 0, 0, 0 };
             callback (View (packet));
             return;
@@ -231,7 +231,7 @@ struct Conversion
         }
 
         const auto status = Utils::getStatus (firstWord);
-        const auto typeAndGroup = ((std::byte { 0x2 } << 0x4) | std::byte { Utils::getGroup (firstWord) });
+        const auto typeAndGroup = ((uint8_t { 0x2 } << 0x4) | uint8_t { Utils::getGroup (firstWord) });
 
         switch ((uint8_t) status)
         {
@@ -240,16 +240,16 @@ struct Conversion
             case 0xa:   // poly pressure
             case 0xb:   // control change
             {
-                const auto statusAndChannel = std::byte ((firstWord >> 0x10) & 0xff);
-                const auto byte2 = std::byte ((firstWord >> 0x08) & 0xff);
-                const auto byte3 = std::byte { scaleTo7 (v[1]) };
+                const auto statusAndChannel = uint8_t ((firstWord >> 0x10) & 0xff);
+                const auto byte2 = uint8_t ((firstWord >> 0x08) & 0xff);
+                const auto byte3 = uint8_t { scaleTo7 (v[1]) };
 
                 // If this is a note-on, and the scaled byte is 0,
                 // the scaled velocity should be 1 instead of 0
-                const auto needsCorrection = status == std::byte { 0x9 } && byte3 == std::byte { 0 };
-                const auto correctedByte = needsCorrection ? std::byte { 1 } : byte3;
+                const auto needsCorrection = status == uint8_t { 0x9 } && byte3 == uint8_t { 0 };
+                const auto correctedByte = needsCorrection ? uint8_t { 1 } : byte3;
 
-                const auto shouldIgnore = status == std::byte { 0xb } && [&]
+                const auto shouldIgnore = status == uint8_t { 0xb } && [&]
                 {
                     switch (uint8_t (byte2))
                     {
@@ -280,13 +280,13 @@ struct Conversion
 
             case 0xd: // channel pressure
             {
-                const auto statusAndChannel = std::byte ((firstWord >> 0x10) & 0xff);
-                const auto byte2 = std::byte { scaleTo7 (v[1]) };
+                const auto statusAndChannel = uint8_t ((firstWord >> 0x10) & 0xff);
+                const auto byte2 = uint8_t { scaleTo7 (v[1]) };
 
                 const PacketX1 packet { Utils::bytesToWord (typeAndGroup,
                                                             statusAndChannel,
                                                             byte2,
-                                                            std::byte { 0 }) };
+                                                            uint8_t { 0 }) };
                 callback (View (packet.data()));
                 return;
             }
@@ -294,17 +294,17 @@ struct Conversion
             case 0x2:   // rpn
             case 0x3:   // nrpn
             {
-                const auto ccX = status == std::byte { 0x2 } ? std::byte { 101 } : std::byte { 99 };
-                const auto ccY = status == std::byte { 0x2 } ? std::byte { 100 } : std::byte { 98 };
-                const auto statusAndChannel = std::byte ((0xb << 0x4) | Utils::getChannel (firstWord));
+                const auto ccX = status == uint8_t { 0x2 } ? uint8_t { 101 } : uint8_t { 99 };
+                const auto ccY = status == uint8_t { 0x2 } ? uint8_t { 100 } : uint8_t { 98 };
+                const auto statusAndChannel = uint8_t ((0xb << 0x4) | Utils::getChannel (firstWord));
                 const auto data = scaleTo14 (v[1]);
 
                 const PacketX1 packets[]
                 {
-                    PacketX1 { Utils::bytesToWord (typeAndGroup, statusAndChannel, ccX,              std::byte ((firstWord >> 0x8) & 0x7f)) },
-                    PacketX1 { Utils::bytesToWord (typeAndGroup, statusAndChannel, ccY,              std::byte ((firstWord >> 0x0) & 0x7f)) },
-                    PacketX1 { Utils::bytesToWord (typeAndGroup, statusAndChannel, std::byte { 6 },  std::byte ((data >> 0x7) & 0x7f)) },
-                    PacketX1 { Utils::bytesToWord (typeAndGroup, statusAndChannel, std::byte { 38 }, std::byte ((data >> 0x0) & 0x7f)) },
+                    PacketX1 { Utils::bytesToWord (typeAndGroup, statusAndChannel, ccX,              uint8_t ((firstWord >> 0x8) & 0x7f)) },
+                    PacketX1 { Utils::bytesToWord (typeAndGroup, statusAndChannel, ccY,              uint8_t ((firstWord >> 0x0) & 0x7f)) },
+                    PacketX1 { Utils::bytesToWord (typeAndGroup, statusAndChannel, uint8_t { 6 },  uint8_t ((data >> 0x7) & 0x7f)) },
+                    PacketX1 { Utils::bytesToWord (typeAndGroup, statusAndChannel, uint8_t { 38 }, uint8_t ((data >> 0x0) & 0x7f)) },
                 };
 
                 for (const auto& packet : packets)
@@ -317,24 +317,24 @@ struct Conversion
             {
                 if (firstWord & 1)
                 {
-                    const auto statusAndChannel = std::byte ((0xb << 0x4) | Utils::getChannel (firstWord));
+                    const auto statusAndChannel = uint8_t ((0xb << 0x4) | Utils::getChannel (firstWord));
                     const auto secondWord = v[1];
 
                     const PacketX1 packets[]
                     {
-                        PacketX1 { Utils::bytesToWord (typeAndGroup, statusAndChannel, std::byte { 0 },  std::byte ((secondWord >> 0x8) & 0x7f)) },
-                        PacketX1 { Utils::bytesToWord (typeAndGroup, statusAndChannel, std::byte { 32 }, std::byte ((secondWord >> 0x0) & 0x7f)) },
+                        PacketX1 { Utils::bytesToWord (typeAndGroup, statusAndChannel, uint8_t { 0 },  uint8_t ((secondWord >> 0x8) & 0x7f)) },
+                        PacketX1 { Utils::bytesToWord (typeAndGroup, statusAndChannel, uint8_t { 32 }, uint8_t ((secondWord >> 0x0) & 0x7f)) },
                     };
 
                     for (const auto& packet : packets)
                         callback (View (packet.data()));
                 }
 
-                const auto statusAndChannel = std::byte ((0xc << 0x4) | Utils::getChannel (firstWord));
+                const auto statusAndChannel = uint8_t ((0xc << 0x4) | Utils::getChannel (firstWord));
                 const PacketX1 packet { Utils::bytesToWord (typeAndGroup,
                                                             statusAndChannel,
-                                                            std::byte ((v[1] >> 0x18) & 0x7f),
-                                                            std::byte { 0 }) };
+                                                            uint8_t ((v[1] >> 0x18) & 0x7f),
+                                                            uint8_t { 0 }) };
                 callback (View (packet.data()));
                 return;
             }
@@ -342,11 +342,11 @@ struct Conversion
             case 0xe: // pitch bend
             {
                 const auto data = scaleTo14 (v[1]);
-                const auto statusAndChannel = std::byte ((firstWord >> 0x10) & 0xff);
+                const auto statusAndChannel = uint8_t ((firstWord >> 0x10) & 0xff);
                 const PacketX1 packet { Utils::bytesToWord (typeAndGroup,
                                                             statusAndChannel,
-                                                            std::byte (data & 0x7f),
-                                                            std::byte ((data >> 7) & 0x7f)) };
+                                                            uint8_t (data & 0x7f),
+                                                            uint8_t ((data >> 7) & 0x7f)) };
                 callback (View (packet.data()));
                 return;
             }

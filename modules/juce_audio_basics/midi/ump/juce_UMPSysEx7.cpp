@@ -49,12 +49,12 @@ SysEx7::PacketBytes SysEx7::getDataBytes (const PacketX2& packet)
 
     return
     {
-        { { std::byte { packet.getU8<2>() },
-            std::byte { packet.getU8<3>() },
-            std::byte { packet.getU8<4>() },
-            std::byte { packet.getU8<5>() },
-            std::byte { packet.getU8<6>() },
-            std::byte { packet.getU8<7>() } } },
+        { { uint8_t { packet.getU8<2>() },
+            uint8_t { packet.getU8<3>() },
+            uint8_t { packet.getU8<4>() },
+            uint8_t { packet.getU8<5>() },
+            uint8_t { packet.getU8<6>() },
+            uint8_t { packet.getU8<7>() } } },
         jmin (numBytes, maxBytes)
     };
 }

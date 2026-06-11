@@ -92,7 +92,7 @@ public:
         return withU4<1> (group);
     }
 
-    Packet withStatus (std::byte status) const noexcept
+    Packet withStatus (uint8_t status) const noexcept
     {
         return withU4<2> (uint8_t (status));
     }
@@ -106,7 +106,7 @@ public:
 
     uint8_t getGroup() const noexcept { return getU4<1>(); }
 
-    std::byte getStatus() const noexcept { return getU4<2>(); }
+    uint8_t getStatus() const noexcept { return getU4<2>(); }
 
     uint8_t getChannel() const noexcept { return getU4<3>(); }
 
