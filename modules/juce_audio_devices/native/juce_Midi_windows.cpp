@@ -679,20 +679,20 @@ private:
     {
         return ump::DeviceInfo
         {
-            { std::byte (x.SystemExclusiveIdByte1),
-              std::byte (x.SystemExclusiveIdByte2),
-              std::byte (x.SystemExclusiveIdByte3) },
+            { uint8_t (x.SystemExclusiveIdByte1),
+              uint8_t (x.SystemExclusiveIdByte2),
+              uint8_t (x.SystemExclusiveIdByte3) },
 
-            { std::byte (x.DeviceFamilyLsb),
-              std::byte (x.DeviceFamilyMsb) },
+            { uint8_t (x.DeviceFamilyLsb),
+              uint8_t (x.DeviceFamilyMsb) },
 
-            { std::byte (x.DeviceFamilyModelNumberLsb),
-              std::byte (x.DeviceFamilyModelNumberMsb) },
+            { uint8_t (x.DeviceFamilyModelNumberLsb),
+              uint8_t (x.DeviceFamilyModelNumberMsb) },
 
-            { std::byte (x.SoftwareRevisionLevelByte1),
-              std::byte (x.SoftwareRevisionLevelByte2),
-              std::byte (x.SoftwareRevisionLevelByte3),
-              std::byte (x.SoftwareRevisionLevelByte4) },
+            { uint8_t (x.SoftwareRevisionLevelByte1),
+              uint8_t (x.SoftwareRevisionLevelByte2),
+              uint8_t (x.SoftwareRevisionLevelByte3),
+              uint8_t (x.SoftwareRevisionLevelByte4) },
         };
     }
 
@@ -2164,7 +2164,7 @@ struct WindowsMidiHelpers
                 if (FAILED (hr))
                     return hr;
 
-                const Span bytes { unalignedPointerCast<const std::byte*> (bufferData), numBytes };
+                const Span bytes { unalignedPointerCast<const uint8_t*> (bufferData), numBytes };
                 const auto time = convertTimeStamp (timespan.Duration);
                 dispatcher.dispatch (bytes, time, [this] (const ump::View& view, double timestamp)
                 {
@@ -2291,7 +2291,7 @@ struct WindowsMidiHelpers
                 port = nullptr;
             }
 
-            void sendBytestream (Span<const std::byte> message)
+            void sendBytestream (Span<const uint8_t> message)
             {
                 if (port == nullptr)
                     return;
@@ -2649,7 +2649,7 @@ struct WindowsMidiHelpers
                 {
                     auto len = MidiMessage::getMessageLengthFromFirstByte (bytes[0]);
                     auto time = convertTimeStamp (timeStamp);
-                    dispatcher.dispatch ({ unalignedPointerCast<const std::byte*> (bytes), (size_t) len }, time, [this] (const ump::View& view, double timestamp)
+                    dispatcher.dispatch ({ unalignedPointerCast<const uint8_t*> (bytes), (size_t) len }, time, [this] (const ump::View& view, double timestamp)
                     {
                         const ump::Iterator b { view.data(), view.size() };
                         const auto e = std::next (b);
@@ -2665,7 +2665,7 @@ struct WindowsMidiHelpers
                 if (hdr->dwBytesRecorded > 0)
                 {
                     auto time = convertTimeStamp (timeStamp);
-                    dispatcher.dispatch ({ unalignedPointerCast<const std::byte*> (hdr->lpData), (size_t) hdr->dwBytesRecorded }, time, [this] (const ump::View& view, double timestamp)
+                    dispatcher.dispatch ({ unalignedPointerCast<const uint8_t*> (hdr->lpData), (size_t) hdr->dwBytesRecorded }, time, [this] (const ump::View& view, double timestamp)
                     {
                         const ump::Iterator b { view.data(), view.size() };
                         const auto e = std::next (b);
@@ -2859,12 +2859,12 @@ struct WindowsMidiHelpers
                 allOutputs().add (*this);
             }
 
-            void sendBytestream (Span<const std::byte> message)
+            void sendBytestream (Span<const uint8_t> message)
             {
                 if (message.empty())
                     return;
 
-                if (message.size() > 3 || message[0] == std::byte { 0xf0 })
+                if (message.size() > 3 || message[0] == uint8_t { 0xf0 })
                 {
                     MIDIHDR h = {};
 
