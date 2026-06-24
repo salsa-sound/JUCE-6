@@ -65,10 +65,10 @@ struct CoreMidiHelpers
 
     static constexpr auto int14ToBytes (uint16_t x)
     {
-        return std::array<std::byte, 2> { std::byte (x & 0x7f), std::byte ((x >> 7) & 0x7f) };
+        return std::array<uint8_t, 2> { uint8_t (x & 0x7f), uint8_t ((x >> 7) & 0x7f) };
     }
 
-    static constexpr auto bytesToInt14 (Span<const std::byte, 2> bytes)
+    static constexpr auto bytesToInt14 (Span<const uint8_t, 2> bytes)
     {
         return UInt16 ((UInt16 (bytes[0]) & 0x7f) | ((UInt16 (bytes[1]) & 0x7f) << 7));
     }
@@ -685,8 +685,8 @@ struct CoreMidiHelpers
         template <typename Numeric, size_t N>
         static auto copyToByteArray (const Numeric (&arr)[N])
         {
-            std::array<std::byte, N> result;
-            std::transform (std::begin (arr), std::end (arr), std::begin (result), [] (auto x) { return std::byte (x); });
+            std::array<uint8_t, N> result;
+            std::transform (std::begin (arr), std::end (arr), std::begin (result), [] (auto x) { return uint8_t (x); });
             return result;
         }
 

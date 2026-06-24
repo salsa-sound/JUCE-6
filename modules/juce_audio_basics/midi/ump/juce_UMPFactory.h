@@ -355,7 +355,7 @@ struct Factory
                                              Span<const uint8_t> data)
         {
             jassert (data.size() <= 14);
-            const uint8_t header[] { uint8_t (0xf0) | uint8_t ((uint8_t) kind << 2), status, };
+            const uint8_t header[] { static_cast<uint8_t>(0xf0 | (static_cast<uint8_t>(kind) << 2)), status, };
             return makePacketX4 (header, data);
         }
 
@@ -878,7 +878,7 @@ struct Factory
 
         splitIntoPackets (byteSpan, 13, [&] (SysEx7::Kind kind, Span<const uint8_t> bytesThisTime)
         {
-            const uint8_t header[] { uint8_t (0xf0) | uint8_t ((uint8_t) kind << 2), uint8_t (0x12), uint8_t (index) };
+            const uint8_t header[] { static_cast<uint8_t>(0xf0 | static_cast<uint8_t>(kind) << 2), uint8_t (0x12), uint8_t (index) };
             fn (View (Detail::makePacketX4 (header, bytesThisTime).data()));
         });
 
